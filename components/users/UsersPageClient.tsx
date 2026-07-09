@@ -14,19 +14,21 @@ import {
 } from "@tabler/icons-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
-import InviteUserDialog from "./InviteUserDialog";
+import InviteUserDialog from "@/components/users/InviteUserDialog";
 
 // ---------------------------------------------------------------------------
 // Users table
 // ---------------------------------------------------------------------------
+type UserWithDetails = Omit<Doc<"users">, "assignedGroups"> & {
+  roleDetails: Doc<"roles"> | null;
+  assignedGroups: Array<{ _id: Id<"groups">; name: string } | null>;
+};
+
 function UsersTable({
   users,
   locale,
 }: {
-  users: (Doc<"users"> & {
-    roleDetails: Doc<"roles"> | null;
-    assignedGroups: (Doc<"groups"> | null)[];
-  })[];
+  users: UserWithDetails[];
   locale: string;
 }) {
   const t = useTranslations("usersPage");
@@ -233,7 +235,7 @@ function UsersQueryBody() {
 
   const canInvite = Boolean(
     currentUser?.roleDetails?.permissions.includes("admin:all") ||
-      currentUser?.roleDetails?.permissions.includes("users:update"),
+    currentUser?.roleDetails?.permissions.includes("users:update"),
   );
 
   if (authLoading || !isAuthenticated || currentUser === undefined) {
@@ -261,11 +263,9 @@ function UsersQueryBody() {
 
       <PendingInvitationsTable />
 
-      <UsersTable users={(users as any) ?? []} locale={locale} />
+      <UsersTable users={(users as UserWithDetails[]) ?? []} locale={locale} />
 
-      {showInvite && (
-        <InviteUserDialog onClose={() => setShowInvite(false)} />
-      )}
+      {showInvite && <InviteUserDialog onClose={() => setShowInvite(false)} />}
     </div>
   );
 }
