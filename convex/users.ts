@@ -4,6 +4,112 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { getUserAssignedGroupIds } from "./orgGroupHelpers";
 
 // ============================================================================
+// SETUP STATUS — used by SetupGate on first launch
+// ============================================================================
+
+export const getSetupStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { status: "unauthenticated" as const };
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    // Clerk webhook hasn't fired yet — user not in DB
+    if (!currentUser) return { status: "syncing" as const };
+
+    // User already has a role → fully set up
+    if (currentUser.role) return { status: "ready" as const };
+
+    // Check if any admin role exists and is assigned to someone
+    const allRoles = await ctx.db.query("roles").collect();
+    const adminRole = allRoles.find((r) => r.permissions.includes("admin:all"));
+
+    if (!adminRole) return { status: "setup_needed" as const };
+
+    const existingAdmin = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", adminRole._id))
+      .first();
+
+    if (!existingAdmin) return { status: "setup_needed" as const };
+
+    // Admin exists but this user has no role yet → waiting for assignment
+    return { status: "pending_approval" as const };
+  },
+});
+
+// ============================================================================
+// BOOTSTRAP ADMIN — one-time mutation, impossible to repeat after first admin
+// ============================================================================
+
+export const bootstrapAdmin = mutation({
+  args: {
+    workspaceName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    // SECURITY: Check atomically that no admin exists yet
+    const allRoles = await ctx.db.query("roles").collect();
+    const existingAdminRole = allRoles.find((r) =>
+      r.permissions.includes("admin:all"),
+    );
+    if (existingAdminRole) {
+      const existingAdmin = await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => q.eq("role", existingAdminRole._id))
+        .first();
+      if (existingAdmin) throw new Error("Workspace already initialized.");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!currentUser) throw new Error("User not synced yet. Please retry.");
+
+    // Create Super Admin role
+    const roleId = await ctx.db.insert("roles", {
+      name: "Super Admin",
+      permissions: ["admin:all"],
+      updatedAt: Date.now(),
+    });
+
+    // Determine workspace name
+    const groupName =
+      (args.workspaceName ?? "").trim() ||
+      [currentUser.firstName, currentUser.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      "Main";
+
+    // Create default group (workspace)
+    const groupId = await ctx.db.insert("groups", {
+      name: groupName,
+      isDefault: true,
+      createdBy: currentUser._id,
+      updatedAt: Date.now(),
+    });
+
+    // Assign role and group to first user
+    await ctx.db.patch(currentUser._id, {
+      role: roleId,
+      group: groupId,
+      assignedGroups: [groupId],
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// ============================================================================
 // 1. WEBHOOK SYNC (Create or update a user from Clerk)
 // ============================================================================
 

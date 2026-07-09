@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import BottomNav from "./BottomNav";
 import { OrgGroupProvider } from "@/components/providers/OrgGroupProvider";
+import { SetupGate } from "@/components/layout/SetupGate";
 
 function isSignInPathname(pathname: string | null) {
   if (!pathname) return false;
@@ -142,6 +143,7 @@ export default function DashboardLayoutClient({
   }
 
   return (
+    <SetupGate>
     <OrgGroupProvider>
     <div className="mx-auto flex h-screen w-full flex-1 flex-col overflow-hidden md:flex-row">
       <div className="hidden md:block">
@@ -174,5 +176,6 @@ export default function DashboardLayoutClient({
       <BottomNav />
     </div>
     </OrgGroupProvider>
+    </SetupGate>
   );
 }
