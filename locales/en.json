@@ -895,5 +895,37 @@
         "needsNewPassword": "You must set a new password before signing in. Use the link from your administrator or reset flow."
       }
     }
+  },
+  "usersPage": {
+    "metaTitle": "Users",
+    "metaDescription": "Manage team members and send invitations.",
+    "title": "Users",
+    "subtitle": "Manage your team members. Role and group must be set when sending an invitation.",
+    "empty": "No users found.",
+    "colName": "Name",
+    "colEmail": "Email",
+    "colRole": "Role",
+    "colGroups": "Companies",
+    "colJoined": "Last updated",
+    "colInvitedBy": "Invited by",
+    "statusPending": "Pending activation",
+    "inviteButton": "Invite user",
+    "pendingInvitesTitle": "Pending invitations",
+    "cancelInvite": "Cancel invitation",
+    "inviteCancelled": "Invitation cancelled.",
+    "inviteDialogTitle": "Invite a team member",
+    "inviteEmailLabel": "Email address",
+    "inviteEmailPlaceholder": "colleague@example.com",
+    "inviteRoleLabel": "Role",
+    "inviteRolePlaceholder": "— Select a role —",
+    "inviteGroupsLabel": "Accessible companies",
+    "inviteGroupsHint": "Select at least one company.",
+    "inviteNoRoles": "No roles defined yet. Create a role first.",
+    "inviteNoGroups": "No companies defined yet. Create a company first.",
+    "inviteSend": "Send invitation",
+    "inviteSending": "Sending…",
+    "inviteSuccess": "Invitation sent to {email}.",
+    "cancel": "Cancel",
+    "genericError": "An unexpected error occurred."
   }
 }

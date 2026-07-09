@@ -895,5 +895,37 @@
         "needsNewPassword": "يجب تعيين كلمة مرور جديدة قبل تسجيل الدخول. استخدم الرابط المرسل من المسؤول أو مسار الاستعادة."
       }
     }
+  },
+  "usersPage": {
+    "metaTitle": "المستخدمون",
+    "metaDescription": "إدارة أعضاء الفريق وإرسال الدعوات.",
+    "title": "المستخدمون",
+    "subtitle": "إدارة أعضاء فريقك. يجب تحديد الدور والمجموعة عند إرسال الدعوة.",
+    "empty": "لا يوجد مستخدمون.",
+    "colName": "الاسم",
+    "colEmail": "البريد الإلكتروني",
+    "colRole": "الدور",
+    "colGroups": "الشركات",
+    "colJoined": "آخر تحديث",
+    "colInvitedBy": "دعا بواسطة",
+    "statusPending": "بانتظار التفعيل",
+    "inviteButton": "دعوة مستخدم",
+    "pendingInvitesTitle": "الدعوات المعلقة",
+    "cancelInvite": "إلغاء الدعوة",
+    "inviteCancelled": "تم إلغاء الدعوة.",
+    "inviteDialogTitle": "دعوة عضو جديد",
+    "inviteEmailLabel": "البريد الإلكتروني",
+    "inviteEmailPlaceholder": "زميل@مثال.com",
+    "inviteRoleLabel": "الدور",
+    "inviteRolePlaceholder": "— اختر دوراً —",
+    "inviteGroupsLabel": "الشركات المتاحة",
+    "inviteGroupsHint": "اختر شركة واحدة على الأقل.",
+    "inviteNoRoles": "لا توجد أدوار بعد. أنشئ دوراً أولاً.",
+    "inviteNoGroups": "لا توجد شركات بعد. أنشئ شركة أولاً.",
+    "inviteSend": "إرسال الدعوة",
+    "inviteSending": "جارٍ الإرسال…",
+    "inviteSuccess": "تم إرسال الدعوة إلى {email}.",
+    "cancel": "إلغاء",
+    "genericError": "حدث خطأ غير متوقع."
   }
 }

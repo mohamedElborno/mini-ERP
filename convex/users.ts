@@ -1,7 +1,46 @@
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { getUserAssignedGroupIds } from "./orgGroupHelpers";
+
+// Auto-assign role + groups from a pending invitation, then mark it used
+async function autoAssignFromInvitation(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  email: string,
+) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const invitation = await ctx.db
+    .query("pendingInvitations")
+    .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+    .filter((q) => q.eq(q.field("usedAt"), undefined))
+    .first();
+
+  if (!invitation) return;
+
+  // Validate role still exists
+  const role = await ctx.db.get(invitation.roleId);
+  if (!role) return;
+
+  // Validate groups still exist
+  const validGroupIds = (
+    await Promise.all(invitation.groupIds.map((id) => ctx.db.get(id)))
+  )
+    .filter(Boolean)
+    .map((g) => g!._id);
+
+  if (validGroupIds.length === 0) return;
+
+  await ctx.db.patch(userId, {
+    role: invitation.roleId,
+    group: validGroupIds[0],
+    assignedGroups: validGroupIds,
+    updatedAt: Date.now(),
+  });
+
+  await ctx.db.patch(invitation._id, { usedAt: Date.now() });
+}
 
 // ============================================================================
 // SETUP STATUS — used by SetupGate on first launch
@@ -11,33 +50,38 @@ export const getSetupStatus = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return { status: "unauthenticated" as const };
+    // identity === null means Convex JWT config is missing (CLERK_ISSUER_URL not set)
+    if (!identity) return { status: "auth_misconfigured" as const };
+
+    // Check if any admin role exists and is assigned to a user
+    const allRoles = await ctx.db.query("roles").collect();
+    const adminRole = allRoles.find((r) => r.permissions.includes("admin:all"));
+
+    let adminExists = false;
+    if (adminRole) {
+      const existingAdmin = await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => q.eq("role", adminRole._id))
+        .first();
+      adminExists = !!existingAdmin;
+    }
 
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
 
-    // Clerk webhook hasn't fired yet — user not in DB
+    // User exists and has a role → fully ready
+    if (currentUser?.role) return { status: "ready" as const };
+
+    // No admin exists in the system yet → needs first-time bootstrap
+    // (covers both: user in DB with no role, AND user not in DB yet)
+    if (!adminExists) return { status: "setup_needed" as const };
+
+    // Admin exists but this user is not in the DB → webhook pending
     if (!currentUser) return { status: "syncing" as const };
 
-    // User already has a role → fully set up
-    if (currentUser.role) return { status: "ready" as const };
-
-    // Check if any admin role exists and is assigned to someone
-    const allRoles = await ctx.db.query("roles").collect();
-    const adminRole = allRoles.find((r) => r.permissions.includes("admin:all"));
-
-    if (!adminRole) return { status: "setup_needed" as const };
-
-    const existingAdmin = await ctx.db
-      .query("users")
-      .withIndex("by_role", (q) => q.eq("role", adminRole._id))
-      .first();
-
-    if (!existingAdmin) return { status: "setup_needed" as const };
-
-    // Admin exists but this user has no role yet → waiting for assignment
+    // Admin exists, user is in DB but has no role → waiting for assignment
     return { status: "pending_approval" as const };
   },
 });
@@ -54,7 +98,7 @@ export const bootstrapAdmin = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
 
-    // SECURITY: Check atomically that no admin exists yet
+    // SECURITY: Atomic guard — no admin user must exist
     const allRoles = await ctx.db.query("roles").collect();
     const existingAdminRole = allRoles.find((r) =>
       r.permissions.includes("admin:all"),
@@ -67,11 +111,28 @@ export const bootstrapAdmin = mutation({
       if (existingAdmin) throw new Error("Workspace already initialized.");
     }
 
-    const currentUser = await ctx.db
+    // Find or create the Convex user record from Clerk identity
+    // (webhook may not have fired yet in production)
+    let currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
-    if (!currentUser) throw new Error("User not synced yet. Please retry.");
+
+    if (!currentUser) {
+      // Webhook hasn't fired yet — create the user from the Clerk JWT claims
+      const email =
+        identity.email ??
+        identity.tokenIdentifier.replace(/^.*\|/, "") + "@unknown.local";
+      const userId = await ctx.db.insert("users", {
+        clerkId: identity.subject,
+        email,
+        firstName: identity.givenName ?? undefined,
+        lastName: identity.familyName ?? undefined,
+        updatedAt: Date.now(),
+      });
+      currentUser = await ctx.db.get(userId);
+      if (!currentUser) throw new Error("Failed to create user record.");
+    }
 
     // Create Super Admin role
     const roleId = await ctx.db.insert("roles", {
@@ -97,7 +158,7 @@ export const bootstrapAdmin = mutation({
       updatedAt: Date.now(),
     });
 
-    // Assign role and group to first user
+    // Assign role and group to the first user
     await ctx.db.patch(currentUser._id, {
       role: roleId,
       group: groupId,
@@ -128,6 +189,7 @@ export const upsertUser = internalMutation({
       .unique();
 
     if (existingUser) {
+      // Only update profile fields — never overwrite role/group
       await ctx.db.patch(existingUser._id, {
         firstName: args.firstName,
         lastName: args.lastName,
@@ -135,8 +197,12 @@ export const upsertUser = internalMutation({
         imageUrl: args.imageUrl,
         updatedAt: Date.now(),
       });
+      // If user still has no role, try to pick up a pending invitation
+      if (!existingUser.role) {
+        await autoAssignFromInvitation(ctx, existingUser._id, args.email);
+      }
     } else {
-      await ctx.db.insert("users", {
+      const userId = await ctx.db.insert("users", {
         clerkId: args.clerkId,
         email: args.email,
         firstName: args.firstName,
@@ -144,6 +210,8 @@ export const upsertUser = internalMutation({
         imageUrl: args.imageUrl,
         updatedAt: Date.now(),
       });
+      // Auto-assign role + groups from pending invitation
+      await autoAssignFromInvitation(ctx, userId, args.email);
     }
   },
 });

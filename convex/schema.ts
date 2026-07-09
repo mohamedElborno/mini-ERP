@@ -766,6 +766,19 @@ export default defineSchema({
     .index("by_createdBy", ["createdBy"])
     .index("by_group", ["group"]),
 
+  /** Pending invitations — role + groups chosen at invitation time */
+  pendingInvitations: defineTable({
+    email: v.string(),
+    roleId: v.id("roles"),
+    groupIds: v.array(v.id("groups")),
+    invitedBy: v.id("users"),
+    clerkInvitationId: v.optional(v.string()),
+    usedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_invitedBy", ["invitedBy"]),
+
   /** Settings — one document per organizational company (group) */
   settings: defineTable({
     group: v.optional(v.id("groups")),
