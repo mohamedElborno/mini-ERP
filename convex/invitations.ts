@@ -1,12 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import {
-  action,
-  internalMutation,
-  mutation,
-  query,
-} from "./_generated/server";
-import { internal } from "./_generated/api";
+import { action, internalMutation, mutation, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 // ============================================================================
 // INTERNAL — store or replace a pending invitation (called from the action)
@@ -169,10 +164,11 @@ export const inviteEmployee = action({
     if (!identity) throw new Error("Unauthorized");
 
     // Verify caller has permission
-    const sender = await ctx.runQuery(internal.invitations.getSenderInfo, {
+    const sender = await ctx.runQuery(api.invitations.getSenderInfo, {
       clerkId: identity.subject,
     });
-    if (!sender) throw new Error("Forbidden: Missing permission to invite users.");
+    if (!sender)
+      throw new Error("Forbidden: Missing permission to invite users.");
 
     const email = args.emailAddress.toLowerCase().trim();
     if (!email) throw new Error("Email address is required.");
