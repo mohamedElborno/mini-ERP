@@ -1,7 +1,10 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query } from "./_generated/server";
-import { amountInDefaultCurrency, convertAmountFromCurrencyToDefault } from "./quoteFinance";
+import {
+  amountInDefaultCurrency,
+  convertAmountFromCurrencyToDefault,
+} from "./quoteFinance";
 import { computeCreditSummary } from "./companyCredit";
 import {
   canReadInvoiceRow,
@@ -203,7 +206,9 @@ async function collectAccessibleReceiptVouchers(
     );
   }
 
-  const companies = (await ctx.db.query("companies").collect()) as Doc<"companies">[];
+  const companies = (await ctx.db
+    .query("companies")
+    .collect()) as Doc<"companies">[];
   const companiesById = new Map(companies.map((c) => [c._id, c]));
   const withGroup = rows.map((row) => ({
     ...row,
@@ -220,6 +225,26 @@ function voucherTimestamp(voucher: Doc<"receiptVouchers">) {
   return voucher.issueDate ?? voucher.updatedAt ?? voucher._creationTime;
 }
 
+function voucherNetAmount(voucher: Doc<"receiptVouchers">) {
+  return (
+    voucher.netAmount ??
+    voucher.amount - (voucher.paymentMethodTaxAmount ?? 0)
+  );
+}
+
+async function getDefaultCurrencyFromCache(
+  ctx: any,
+  groupId: Id<"groups"> | undefined,
+  cache: Map<string, Id<"currencies"> | undefined>,
+) {
+  const groupKey = groupId ?? "__none__";
+  if (!cache.has(groupKey)) {
+    cache.set(groupKey, await getDefaultCurrencyIdForGroup(ctx, groupId));
+  }
+  return cache.get(groupKey);
+}
+
+/** Allocated (used) portion of a receipt voucher, in the default currency. */
 async function voucherUsedInDefault(
   ctx: any,
   voucher: Doc<"receiptVouchers">,
@@ -230,27 +255,37 @@ async function voucherUsedInDefault(
   }>,
   cache: Map<string, Id<"currencies"> | undefined>,
 ) {
-  const used = voucher.usedAmount ?? 0;
-  if (used <= 0) return 0;
+  const defaultCurrencyId = await getDefaultCurrencyFromCache(
+    ctx,
+    voucher.group,
+    cache,
+  );
 
   if (voucher.allocations?.length) {
-    return voucher.allocations.reduce(
-      (sum, alloc) => sum + (alloc.amountInDefaultCurrency ?? alloc.amount),
-      0,
-    );
+    return voucher.allocations.reduce((sum, alloc) => {
+      if (alloc.amountInDefaultCurrency != null) {
+        return sum + alloc.amountInDefaultCurrency;
+      }
+      return (
+        sum +
+        convertAmountFromCurrencyToDefault(
+          alloc.amount,
+          voucher.currency,
+          defaultCurrencyId,
+          currencies,
+        )
+      );
+    }, 0);
   }
 
-  const groupKey = voucher.group ?? "__none__";
-  if (!cache.has(groupKey)) {
-    cache.set(groupKey, await getDefaultCurrencyIdForGroup(ctx, voucher.group));
-  }
-  const defaultCurrencyId = cache.get(groupKey);
-  const netAmount = voucher.netAmount ?? voucher.amount;
+  const used = voucher.usedAmount ?? 0;
+  if (used <= 0) return 0;
 
   if (!defaultCurrencyId || voucher.currency === defaultCurrencyId) {
     return used;
   }
 
+  const netAmount = voucherNetAmount(voucher);
   const netInDefault =
     voucher.netAmountInDefaultCurrency ?? voucher.amountInDefaultCurrency;
   if (netInDefault != null && netAmount > 0) {
@@ -483,11 +518,29 @@ async function dealValueInDefault(
 
 export const getDashboardMetrics = query({
   args: {
-    periodStart: v.number(),
-    periodEnd: v.number(),
+    periodPreset: v.optional(
+      v.union(v.literal("7d"), v.literal("30d"), v.literal("90d")),
+    ),
+    periodStart: v.optional(v.number()),
+    periodEnd: v.optional(v.number()),
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    let periodStart: number;
+    let periodEnd: number;
+
+    if (args.periodPreset) {
+      periodEnd = Date.now();
+      const days =
+        args.periodPreset === "7d" ? 7 : args.periodPreset === "30d" ? 30 : 90;
+      periodStart = periodEnd - days * MS_DAY;
+    } else if (args.periodStart != null && args.periodEnd != null) {
+      periodStart = args.periodStart;
+      periodEnd = args.periodEnd;
+    } else {
+      throw new Error("Dashboard period is required.");
+    }
+
     const { user, isAdmin, permissions } = await loadUserWithRole(ctx);
     const accessible = await getAccessibleOrgGroupIds(ctx, user, isAdmin);
     const filter = resolveOrgGroupFilter(args.orgGroupId, accessible, isAdmin);
@@ -601,7 +654,7 @@ export const getDashboardMetrics = query({
 
       // Track active clients from deals in the period
       for (const deal of deals as Doc<"deals">[]) {
-        if (inPeriod(deal, args.periodStart, args.periodEnd) && deal.company) {
+        if (inPeriod(deal, periodStart, periodEnd) && deal.company) {
           activeClientIdsInPeriod.add(deal.company);
         }
       }
@@ -626,7 +679,7 @@ export const getDashboardMetrics = query({
       );
       const vouchersInPeriod = vouchers.filter((voucher) => {
         const t = voucherTimestamp(voucher);
-        return t >= args.periodStart && t <= args.periodEnd;
+        return t >= periodStart && t <= periodEnd;
       });
 
       paidSalesTotal = 0;
@@ -639,14 +692,14 @@ export const getDashboardMetrics = query({
         );
       }
 
-      const bucketMs = computeBucketMs(args.periodStart, args.periodEnd);
+      const bucketMs = computeBucketMs(periodStart, periodEnd);
       const bucketTotals = new Map<number, number>();
 
       for (const voucher of vouchersInPeriod) {
         const t = voucherTimestamp(voucher);
-        const idx = Math.floor((t - args.periodStart) / bucketMs);
-        const bucketStart = args.periodStart + idx * bucketMs;
-        if (bucketStart > args.periodEnd) continue;
+        const idx = Math.floor((t - periodStart) / bucketMs);
+        const bucketStart = periodStart + idx * bucketMs;
+        if (bucketStart > periodEnd) continue;
         const amount = await voucherUsedInDefault(
           ctx,
           voucher,
@@ -659,7 +712,7 @@ export const getDashboardMetrics = query({
         );
       }
 
-      for (let t = args.periodStart; t <= args.periodEnd; t += bucketMs) {
+      for (let t = periodStart; t <= periodEnd; t += bucketMs) {
         salesSeries.push({
           date: new Date(t).toISOString().slice(0, 10),
           sales: bucketTotals.get(t) ?? 0,
@@ -691,7 +744,7 @@ export const getDashboardMetrics = query({
         canReadInvoiceRow(inv, user, isAdmin, accessible, accessibleDealIds),
       );
       const invoicesInPeriod = readableInvoices.filter((inv) =>
-        inPeriod(inv, args.periodStart, args.periodEnd),
+        inPeriod(inv, periodStart, periodEnd),
       );
 
       let invoiceTotalValue = 0;
@@ -707,8 +760,7 @@ export const getDashboardMetrics = query({
         count: invoicesInPeriod.length,
         totalValue: invoiceTotalValue,
         approvedCount: invoicesInPeriod.filter(
-          (inv) =>
-            inv.status === "paid" || inv.status === "partially_paid",
+          (inv) => inv.status === "paid" || inv.status === "partially_paid",
         ).length,
         cancelledCount: invoicesInPeriod.filter((inv) => inv.status === "void")
           .length,
@@ -736,7 +788,7 @@ export const getDashboardMetrics = query({
         accessible,
       );
       const quotesInPeriod = quotes.filter((q) =>
-        inPeriod(q, args.periodStart, args.periodEnd),
+        inPeriod(q, periodStart, periodEnd),
       );
 
       let quoteTotalValue = 0;
@@ -779,8 +831,7 @@ export const getDashboardMetrics = query({
     );
 
     // activeClientsCount: unique clients with any deal/quote/invoice/voucher in the period
-    const canCountActive =
-      canDeals || canVouchers || canInvoices || canQuotes;
+    const canCountActive = canDeals || canVouchers || canInvoices || canQuotes;
     const activeClientsCount = canCountActive
       ? activeClientIdsInPeriod.size
       : null;

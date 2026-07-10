@@ -19,7 +19,6 @@ import { DashboardDocumentSummaryCard } from "@/components/dashboard/DashboardDo
 import {
   DashboardPeriodPicker,
   periodFromCustomRange,
-  periodFromPreset,
   type DashboardPeriodSelection,
 } from "@/components/dashboard/DashboardPeriodPicker";
 import { DashboardRecentActivityTable } from "@/components/dashboard/DashboardRecentActivityTable";
@@ -38,18 +37,27 @@ export default function DashboardPageClient() {
       preset: "30d",
     });
 
-  const range = useMemo(() => {
+  const queryArgs = useMemo(() => {
     if (periodSelection.mode === "preset") {
-      return periodFromPreset(periodSelection.preset);
+      return {
+        periodPreset: periodSelection.preset,
+        orgGroupId: orgGroupFilter,
+      };
     }
-    return periodFromCustomRange(periodSelection.from, periodSelection.to);
-  }, [periodSelection]);
+    const range = periodFromCustomRange(
+      periodSelection.from,
+      periodSelection.to,
+    );
+    return {
+      periodStart: range.periodStart,
+      periodEnd: range.periodEnd,
+      orgGroupId: orgGroupFilter,
+    };
+  }, [periodSelection, orgGroupFilter]);
 
   const metrics = useQuery(
     api.dashboard.getDashboardMetrics,
-    authLoading || !isAuthenticated
-      ? "skip"
-      : { ...range, orgGroupId: orgGroupFilter },
+    authLoading || !isAuthenticated ? "skip" : queryArgs,
   );
 
   const fmtMoney = (v: number | null | undefined) => {

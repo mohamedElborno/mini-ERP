@@ -7,25 +7,21 @@ import { toast } from "sonner";
 import { IconCash, IconX } from "@tabler/icons-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
-import {
-  convertAmountFromCurrencyToDefault,
-} from "@/convex/quoteFinance";
+import { convertAmountFromCurrencyToDefault } from "@/convex/quoteFinance";
 import { QuoteDatePickerField } from "@/components/quotes/QuoteDatePickerField";
-import { dateToNoonMs, inputCls, labelCls, numInputCls } from "@/components/quotes/quoteFormShared";
+import {
+  dateToNoonMs,
+  inputCls,
+  labelCls,
+  numInputCls,
+} from "@/components/quotes/quoteFormShared";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 
 type PaymentMethod =
-  | "cash"
-  | "bank_transfer"
-  | "check"
-  | "credit_card"
-  | "other";
+  "cash" | "bank_transfer" | "check" | "credit_card" | "other";
 
 type VoucherContext =
-  | "general_credit"
-  | "invoice_payment"
-  | "deal_advance"
-  | "quote_advance";
+  "general_credit" | "invoice_payment" | "deal_advance" | "quote_advance";
 
 type AllocationRow = {
   invoiceId: Id<"invoices">;
@@ -98,11 +94,13 @@ export function AddReceiptVoucherDialog({
   );
   const [applyPaymentTax, setApplyPaymentTax] = useState(false);
   const [paymentTaxRate, setPaymentTaxRate] = useState("");
-  const [issueDate, setIssueDate] = useState<Date | undefined>(() => new Date());
-  const [description, setDescription] = useState("");
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Id<"invoices">[]>(
-    [],
+  const [issueDate, setIssueDate] = useState<Date | undefined>(
+    () => new Date(),
   );
+  const [description, setDescription] = useState("");
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<
+    Id<"invoices">[]
+  >([]);
   const [allocations, setAllocations] = useState<Record<string, string>>({});
 
   const isFromExternal = Boolean(
@@ -160,10 +158,7 @@ export function AddReceiptVoucherDialog({
 
   const linkableVouchers = useQuery(
     api.receiptVouchers.getLinkableReceiptVouchers,
-    isAuthenticated &&
-      isFromExternal &&
-      entryMode === "existing" &&
-      companyId
+    isAuthenticated && isFromExternal && entryMode === "existing" && companyId
       ? {
           companyId,
           requireRemaining: lockedContext === "invoice_payment",
@@ -216,25 +211,18 @@ export function AddReceiptVoucherDialog({
     (effectiveContext === "invoice_payment" ||
       effectiveContext === "deal_advance" ||
       effectiveContext === "quote_advance");
-  const showDealField =
-    effectiveContext === "deal_advance" && !defaultDealId;
+  const showDealField = effectiveContext === "deal_advance" && !defaultDealId;
   const showQuoteField =
     effectiveContext === "quote_advance" && !defaultQuoteId;
   const lockCompanyFields = isFromExternal && Boolean(companyId);
 
   const companyDeals = useMemo(
-    () =>
-      (deals ?? []).filter(
-        (d) => !companyId || d.company === companyId,
-      ),
+    () => (deals ?? []).filter((d) => !companyId || d.company === companyId),
     [deals, companyId],
   );
 
   const companyQuotes = useMemo(
-    () =>
-      (quotes ?? []).filter(
-        (q) => !companyId || q.company === companyId,
-      ),
+    () => (quotes ?? []).filter((q) => !companyId || q.company === companyId),
     [quotes, companyId],
   );
 
@@ -722,9 +710,7 @@ export function AddReceiptVoucherDialog({
                         step="0.01"
                         className={numInputCls}
                         value={existingAllocation}
-                        onChange={(e) =>
-                          setExistingAllocation(e.target.value)
-                        }
+                        onChange={(e) => setExistingAllocation(e.target.value)}
                       />
                       {selectedExistingVoucher && (
                         <p className="text-muted-foreground mt-1 text-xs">
@@ -745,401 +731,417 @@ export function AddReceiptVoucherDialog({
 
           {(!isFromExternal || entryMode === "new") && (
             <>
-          {!isFromExternal && (
-          <div>
-            <label className={labelCls}>{t("fieldVoucherContext")}</label>
-            <select
-              className={inputCls}
-              value={voucherContext}
-              onChange={(e) => {
-                const ctx = e.target.value as VoucherContext;
-                setVoucherContext(ctx);
-                if (ctx === "general_credit") {
-                  setSelectedInvoiceIds([]);
-                  setAllocations({});
-                  setDealId("");
-                  setQuoteId("");
-                }
-                if (ctx === "invoice_payment") {
-                  setDealId("");
-                  setQuoteId("");
-                }
-              }}
-            >
-              {VOUCHER_CONTEXTS.map((ctx) => (
-                <option key={ctx} value={ctx}>
-                  {t(`voucherContext.${ctx}`)}
-                </option>
-              ))}
-            </select>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {t(`voucherContextHint.${voucherContext}`)}
-            </p>
-          </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelCls}>{t("fieldCompany")}</label>
-              <select
-                className={inputCls}
-                value={companyId}
-                disabled={lockCompanyFields}
-                onChange={(e) => {
-                  setCompanyId(e.target.value as Id<"companies"> | "");
-                  setContactId("");
-                  setDealId("");
-                  setQuoteId("");
-                  setSelectedInvoiceIds([]);
-                  setAllocations({});
-                  setExistingVoucherId("");
-                }}
-              >
-                <option value="">{t("selectCompany")}</option>
-                {(companies ?? []).map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>{t("fieldContact")}</label>
-              <select
-                className={inputCls}
-                value={contactId}
-                disabled={!companyId || lockCompanyFields}
-                onChange={(e) =>
-                  setContactId(e.target.value as Id<"contacts"> | "")
-                }
-              >
-                <option value="">{t("selectContact")}</option>
-                {(contacts ?? []).map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {[c.firstName, c.lastName].filter(Boolean).join(" ") ||
-                      c.email ||
-                      "—"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {showDealField && (
-            <div>
-              <label className={labelCls}>{t("fieldDeal")}</label>
-              <select
-                className={inputCls}
-                value={dealId}
-                disabled={!companyId}
-                onChange={(e) =>
-                  setDealId(e.target.value as Id<"deals"> | "")
-                }
-              >
-                <option value="">{t("selectDeal")}</option>
-                {companyDeals.map((d) => (
-                  <option key={d._id} value={d._id}>
-                    {d.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {showQuoteField && (
-            <div>
-              <label className={labelCls}>{t("fieldQuote")}</label>
-              <select
-                className={inputCls}
-                value={quoteId}
-                disabled={!companyId}
-                onChange={(e) => {
-                  const id = e.target.value as Id<"quotes"> | "";
-                  setQuoteId(id);
-                  const q = companyQuotes.find((x) => x._id === id);
-                  if (q?.deal) setDealId(q.deal);
-                }}
-              >
-                <option value="">{t("selectQuote")}</option>
-                {companyQuotes.map((q) => (
-                  <option key={q._id} value={q._id}>
-                    {q.number ?? q._id}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelCls}>{t("fieldAmount")}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className={numInputCls}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>{t("fieldCurrency")}</label>
-              <select
-                className={inputCls}
-                value={currencyId}
-                onChange={(e) => {
-                  const newCur = e.target.value as Id<"currencies">;
-                  setCurrencyId(newCur);
-                  setExchangeRateManual(false);
-                  if (amount && currencies && defaultCurrencyId) {
-                    const n = parseFloat(amount);
-                    if (Number.isFinite(n)) recalcDefaultAmount(n, newCur);
-                  }
-                }}
-              >
-                <option value="">{t("selectCurrency")}</option>
-                {(currencies ?? []).map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name} ({c.symbol})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {isNonDefaultCurrency && (
-            <div>
-              <label className={labelCls}>{t("fieldAmountInDefault")}</label>
-              {exchangeRatePreview && (
-                <p className="text-muted-foreground mb-1 text-xs">
-                  {t("exchangeRatePreview", exchangeRatePreview)}
-                </p>
-              )}
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className={numInputCls}
-                value={amountInDefault}
-                onChange={(e) => {
-                  setExchangeRateManual(true);
-                  setAmountInDefault(e.target.value);
-                }}
-              />
-              <p className="text-muted-foreground mt-1 text-xs">
-                {t("fieldAmountInDefaultHint", {
-                  symbol: defaultCurrency?.symbol ?? "—",
-                })}
-              </p>
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelCls}>{t("fieldPaymentMethod")}</label>
-              <select
-                className={inputCls}
-                value={paymentMethod}
-                onChange={(e) => {
-                  setPaymentMethod(e.target.value as PaymentMethod);
-                  if (
-                    !BANK_ACCOUNT_METHODS.includes(
-                      e.target.value as PaymentMethod,
-                    )
-                  ) {
-                    setBankAccountId("");
-                  }
-                }}
-              >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {t(`paymentMethod.${m}`)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>{t("fieldIssueDate")}</label>
-              <QuoteDatePickerField
-                value={issueDate}
-                onChange={setIssueDate}
-                placeholder={t("fieldIssueDate")}
-                locale={locale}
-              />
-            </div>
-          </div>
-
-          {requiresBankAccount && (
-            <div>
-              <label className={labelCls}>{t("fieldBankAccount")}</label>
-              <select
-                className={inputCls}
-                value={bankAccountId}
-                onChange={(e) =>
-                  setBankAccountId(e.target.value as Id<"bankAccounts"> | "")
-                }
-              >
-                <option value="">{t("selectBankAccount")}</option>
-                {(bankAccounts ?? []).map((b) => (
-                  <option key={b._id} value={b._id}>
-                    {b.bankName}
-                    {b.isPrimary ? " ★" : ""} — {b.accountNumber} ({b.iban})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="border-border space-y-3 rounded-xl border p-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={applyPaymentTax}
-                onChange={(e) => setApplyPaymentTax(e.target.checked)}
-                className="rounded"
-              />
-              {t("fieldPaymentTaxOptional")}
-            </label>
-            {applyPaymentTax && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              {!isFromExternal && (
                 <div>
-                  <label className={labelCls}>{t("fieldPaymentTaxRate")}</label>
+                  <label className={labelCls}>{t("fieldVoucherContext")}</label>
+                  <select
+                    className={inputCls}
+                    value={voucherContext}
+                    onChange={(e) => {
+                      const ctx = e.target.value as VoucherContext;
+                      setVoucherContext(ctx);
+                      if (ctx === "general_credit") {
+                        setSelectedInvoiceIds([]);
+                        setAllocations({});
+                        setDealId("");
+                        setQuoteId("");
+                      }
+                      if (ctx === "invoice_payment") {
+                        setDealId("");
+                        setQuoteId("");
+                      }
+                    }}
+                  >
+                    {VOUCHER_CONTEXTS.map((ctx) => (
+                      <option key={ctx} value={ctx}>
+                        {t(`voucherContext.${ctx}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {t(`voucherContextHint.${voucherContext}`)}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelCls}>{t("fieldCompany")}</label>
+                  <select
+                    className={inputCls}
+                    value={companyId}
+                    disabled={lockCompanyFields}
+                    onChange={(e) => {
+                      setCompanyId(e.target.value as Id<"companies"> | "");
+                      setContactId("");
+                      setDealId("");
+                      setQuoteId("");
+                      setSelectedInvoiceIds([]);
+                      setAllocations({});
+                      setExistingVoucherId("");
+                    }}
+                  >
+                    <option value="">{t("selectCompany")}</option>
+                    {(companies ?? []).map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>{t("fieldContact")}</label>
+                  <select
+                    className={inputCls}
+                    value={contactId}
+                    disabled={!companyId || lockCompanyFields}
+                    onChange={(e) =>
+                      setContactId(e.target.value as Id<"contacts"> | "")
+                    }
+                  >
+                    <option value="">{t("selectContact")}</option>
+                    {(contacts ?? []).map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {[c.firstName, c.lastName].filter(Boolean).join(" ") ||
+                          c.email ||
+                          "—"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {showDealField && (
+                <div>
+                  <label className={labelCls}>{t("fieldDeal")}</label>
+                  <select
+                    className={inputCls}
+                    value={dealId}
+                    disabled={!companyId}
+                    onChange={(e) =>
+                      setDealId(e.target.value as Id<"deals"> | "")
+                    }
+                  >
+                    <option value="">{t("selectDeal")}</option>
+                    {companyDeals.map((d) => (
+                      <option key={d._id} value={d._id}>
+                        {d.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {showQuoteField && (
+                <div>
+                  <label className={labelCls}>{t("fieldQuote")}</label>
+                  <select
+                    className={inputCls}
+                    value={quoteId}
+                    disabled={!companyId}
+                    onChange={(e) => {
+                      const id = e.target.value as Id<"quotes"> | "";
+                      setQuoteId(id);
+                      const q = companyQuotes.find((x) => x._id === id);
+                      if (q?.deal) setDealId(q.deal);
+                    }}
+                  >
+                    <option value="">{t("selectQuote")}</option>
+                    {companyQuotes.map((q) => (
+                      <option key={q._id} value={q._id}>
+                        {q.number ?? q._id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelCls}>{t("fieldAmount")}</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     className={numInputCls}
-                    value={paymentTaxRate}
-                    onChange={(e) => setPaymentTaxRate(e.target.value)}
-                    placeholder="%"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
                   />
                 </div>
-                {paymentTaxRate && parsedAmount > 0 && (
-                  <div>
-                    <label className={labelCls}>{t("fieldPaymentTaxAmount")}</label>
-                    <p className="text-foreground pt-2 text-sm tabular-nums font-medium">
-                      {paymentTaxAmount.toFixed(2)}
-                    </p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {t("fieldPaymentTaxDeductedHint")}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {showInvoiceReferencePicker &&
-            companyId &&
-            eligibleInvoices.length > 0 && (
-            <div className="border-border space-y-3 rounded-xl border p-4">
-              <p className="text-sm font-semibold">{t("fieldReferences")}</p>
-              <p className="text-muted-foreground text-xs">
-                {t("fieldReferencesHint")}
-              </p>
-              <ul className="space-y-2">
-                {eligibleInvoices.map((inv) => {
-                  const selected = selectedInvoiceIds.includes(inv._id);
-                  return (
-                    <li
-                      key={inv._id}
-                      className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3"
-                    >
-                      <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => toggleInvoice(inv._id)}
-                          className="rounded"
-                        />
-                        <span className="font-mono font-medium">
-                          {inv.number ?? "—"}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          ({inv.total?.toFixed(2) ?? "—"})
-                        </span>
-                      </label>
-                      {selected && (
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className={`${numInputCls} max-w-[120px]`}
-                          placeholder={t("allocationAmount")}
-                          value={allocations[inv._id] ?? ""}
-                          onChange={(e) =>
-                            setAllocations((a) => ({
-                              ...a,
-                              [inv._id]: e.target.value,
-                            }))
-                          }
-                        />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {parsedAmount > 0 && (
-            <div className="bg-muted/30 border-border grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm sm:grid-cols-4">
-              <div>
-                <p className="text-muted-foreground text-xs">{t("fieldGrossAmount")}</p>
-                <p className="font-semibold tabular-nums">
-                  {parsedAmount.toFixed(2)}
-                </p>
-              </div>
-              {paymentTaxAmount > 0 && (
                 <div>
-                  <p className="text-muted-foreground text-xs">
-                    {t("fieldPaymentTaxAmount")}
-                  </p>
-                  <p className="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                    −{paymentTaxAmount.toFixed(2)}
+                  <label className={labelCls}>{t("fieldCurrency")}</label>
+                  <select
+                    className={inputCls}
+                    value={currencyId}
+                    onChange={(e) => {
+                      const newCur = e.target.value as Id<"currencies">;
+                      setCurrencyId(newCur);
+                      setExchangeRateManual(false);
+                      if (amount && currencies && defaultCurrencyId) {
+                        const n = parseFloat(amount);
+                        if (Number.isFinite(n)) recalcDefaultAmount(n, newCur);
+                      }
+                    }}
+                  >
+                    <option value="">{t("selectCurrency")}</option>
+                    {(currencies ?? []).map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name} ({c.symbol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {isNonDefaultCurrency && (
+                <div>
+                  <label className={labelCls}>
+                    {t("fieldAmountInDefault")}
+                  </label>
+                  {exchangeRatePreview && (
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      {t("exchangeRatePreview", exchangeRatePreview)}
+                    </p>
+                  )}
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={numInputCls}
+                    value={amountInDefault}
+                    onChange={(e) => {
+                      setExchangeRateManual(true);
+                      setAmountInDefault(e.target.value);
+                    }}
+                  />
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {t("fieldAmountInDefaultHint", {
+                      symbol: defaultCurrency?.symbol ?? "—",
+                    })}
                   </p>
                 </div>
               )}
-              <div>
-                <p className="text-muted-foreground text-xs">{t("fieldNetAmount")}</p>
-                <p className="font-semibold tabular-nums">
-                  {netAmount.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">{t("usedAmount")}</p>
-                <p className="font-semibold tabular-nums">
-                  {usedAmount.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">
-                  {t("remainingAmount")}
-                </p>
-                <p className="font-semibold tabular-nums">
-                  {remainingAmount.toFixed(2)}
-                </p>
-              </div>
-              <div className="sm:col-span-2">
-                <p className="text-muted-foreground text-xs">
-                  {t("prepaidBalanceCredit")}
-                </p>
-                <p className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                  {Math.max(0, remainingAmount).toFixed(2)}
-                </p>
-              </div>
-            </div>
-          )}
 
-          <div>
-            <label className={labelCls}>{t("fieldDescription")}</label>
-            <textarea
-              className={`${inputCls} min-h-[72px] resize-y`}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-            />
-          </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelCls}>{t("fieldPaymentMethod")}</label>
+                  <select
+                    className={inputCls}
+                    value={paymentMethod}
+                    onChange={(e) => {
+                      setPaymentMethod(e.target.value as PaymentMethod);
+                      if (
+                        !BANK_ACCOUNT_METHODS.includes(
+                          e.target.value as PaymentMethod,
+                        )
+                      ) {
+                        setBankAccountId("");
+                      }
+                    }}
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {t(`paymentMethod.${m}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>{t("fieldIssueDate")}</label>
+                  <QuoteDatePickerField
+                    value={issueDate}
+                    onChange={setIssueDate}
+                    placeholder={t("fieldIssueDate")}
+                    locale={locale}
+                  />
+                </div>
+              </div>
+
+              {requiresBankAccount && (
+                <div>
+                  <label className={labelCls}>{t("fieldBankAccount")}</label>
+                  <select
+                    className={inputCls}
+                    value={bankAccountId}
+                    onChange={(e) =>
+                      setBankAccountId(
+                        e.target.value as Id<"bankAccounts"> | "",
+                      )
+                    }
+                  >
+                    <option value="">{t("selectBankAccount")}</option>
+                    {(bankAccounts ?? []).map((b) => (
+                      <option key={b._id} value={b._id}>
+                        {b.bankName}
+                        {b.isPrimary ? " ★" : ""} — {b.accountNumber} ({b.iban})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="border-border space-y-3 rounded-xl border p-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={applyPaymentTax}
+                    onChange={(e) => setApplyPaymentTax(e.target.checked)}
+                    className="rounded"
+                  />
+                  {t("fieldPaymentTaxOptional")}
+                </label>
+                {applyPaymentTax && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className={labelCls}>
+                        {t("fieldPaymentTaxRate")}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className={numInputCls}
+                        value={paymentTaxRate}
+                        onChange={(e) => setPaymentTaxRate(e.target.value)}
+                        placeholder="%"
+                      />
+                    </div>
+                    {paymentTaxRate && parsedAmount > 0 && (
+                      <div>
+                        <label className={labelCls}>
+                          {t("fieldPaymentTaxAmount")}
+                        </label>
+                        <p className="text-foreground pt-2 text-sm tabular-nums font-medium">
+                          {paymentTaxAmount.toFixed(2)}
+                        </p>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {t("fieldPaymentTaxDeductedHint")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {showInvoiceReferencePicker &&
+                companyId &&
+                eligibleInvoices.length > 0 && (
+                  <div className="border-border space-y-3 rounded-xl border p-4">
+                    <p className="text-sm font-semibold">
+                      {t("fieldReferences")}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("fieldReferencesHint")}
+                    </p>
+                    <ul className="space-y-2">
+                      {eligibleInvoices.map((inv) => {
+                        const selected = selectedInvoiceIds.includes(inv._id);
+                        return (
+                          <li
+                            key={inv._id}
+                            className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3"
+                          >
+                            <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggleInvoice(inv._id)}
+                                className="rounded"
+                              />
+                              <span className="font-mono font-medium">
+                                {inv.number ?? "—"}
+                              </span>
+                              <span className="text-muted-foreground text-xs">
+                                ({inv.total?.toFixed(2) ?? "—"})
+                              </span>
+                            </label>
+                            {selected && (
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                className={`${numInputCls} max-w-[120px]`}
+                                placeholder={t("allocationAmount")}
+                                value={allocations[inv._id] ?? ""}
+                                onChange={(e) =>
+                                  setAllocations((a) => ({
+                                    ...a,
+                                    [inv._id]: e.target.value,
+                                  }))
+                                }
+                              />
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+              {parsedAmount > 0 && (
+                <div className="bg-muted/30 border-border grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm sm:grid-cols-4">
+                  <div>
+                    <p className="text-muted-foreground text-xs">
+                      {t("fieldGrossAmount")}
+                    </p>
+                    <p className="font-semibold tabular-nums">
+                      {parsedAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  {paymentTaxAmount > 0 && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">
+                        {t("fieldPaymentTaxAmount")}
+                      </p>
+                      <p className="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                        −{paymentTaxAmount.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-muted-foreground text-xs">
+                      {t("fieldNetAmount")}
+                    </p>
+                    <p className="font-semibold tabular-nums">
+                      {netAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">
+                      {t("usedAmount")}
+                    </p>
+                    <p className="font-semibold tabular-nums">
+                      {usedAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">
+                      {t("remainingAmount")}
+                    </p>
+                    <p className="font-semibold tabular-nums">
+                      {remainingAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-muted-foreground text-xs">
+                      {t("prepaidBalanceCredit")}
+                    </p>
+                    <p className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                      {Math.max(0, remainingAmount).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className={labelCls}>{t("fieldDescription")}</label>
+                <textarea
+                  className={`${inputCls} min-h-[72px] resize-y`}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                />
+              </div>
             </>
           )}
         </div>
