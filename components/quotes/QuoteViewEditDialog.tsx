@@ -439,7 +439,7 @@ export function QuoteViewEditDialog({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-20 md:pb-4">
       <div
         className="absolute inset-0 min-h-screen min-w-screen bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
@@ -735,3 +735,4 @@ export function QuoteViewEditDialog({
     </>
   );
 }
+

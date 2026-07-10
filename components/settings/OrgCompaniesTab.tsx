@@ -51,7 +51,7 @@ function DeleteCompanyDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-20 md:pb-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="bg-card border-border relative z-10 w-full max-w-lg rounded-2xl border p-5 shadow-2xl">
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -417,3 +417,4 @@ export function OrgCompaniesTab() {
     </div>
   );
 }
+

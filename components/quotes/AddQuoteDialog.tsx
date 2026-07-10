@@ -299,7 +299,7 @@ export function AddQuoteDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-20 md:pb-4">
       <div
         className="absolute inset-0 min-h-screen min-w-screen bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
@@ -329,7 +329,7 @@ export function AddQuoteDialog({
 
         <form
           onSubmit={handleSubmit}
-          className="flex max-h-[85vh] flex-col overflow-hidden"
+          className="flex max-h-[calc(85vh-4rem)] flex-col overflow-hidden md:max-h-[85vh]"
         >
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
             <QuoteFormMetaSection

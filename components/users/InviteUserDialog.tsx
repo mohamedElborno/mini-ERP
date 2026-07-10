@@ -61,7 +61,7 @@ export default function InviteUserDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-20 md:pb-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -186,3 +186,4 @@ export default function InviteUserDialog({
     </div>
   );
 }
+

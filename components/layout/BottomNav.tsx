@@ -6,12 +6,8 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
   IconBrandTabler,
-  IconAnalyze,
   IconBuilding,
-  IconPlugConnected,
   IconDots,
-  IconCurrencyDollar,
-  IconCreditCard,
   IconUsers,
   IconReceipt,
   IconShield,
@@ -20,10 +16,8 @@ import {
   IconCash,
   IconTag,
   IconPackage,
-  IconBuildingWarehouse,
-  IconHandClick,
-  IconHandMiddleFinger,
   IconHeartHandshake,
+  IconSettings2,
 } from "@tabler/icons-react";
 
 export default function BottomNav() {
@@ -66,11 +60,6 @@ export default function BottomNav() {
       icon: IconCash,
     },
     {
-      label: t("categories") || "Categories",
-      href: "/categories",
-      icon: IconTag,
-    },
-    {
       label: t("products") || "Products",
       href: "/products",
       icon: IconPackage,
@@ -81,9 +70,24 @@ export default function BottomNav() {
       icon: IconHeartHandshake,
     },
     {
+      label: t("categories") || "Categories",
+      href: "/categories",
+      icon: IconTag,
+    },
+    {
       label: t("roles") || "Roles",
       href: "/roles",
       icon: IconShield,
+    },
+    {
+      label: t("users") || "Users",
+      href: "/users",
+      icon: IconUsers,
+    },
+    {
+      label: t("settings") || "Settings",
+      href: "/settings",
+      icon: IconSettings2,
     },
   ];
 
