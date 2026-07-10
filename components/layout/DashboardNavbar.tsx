@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { IconMenu2 } from "@tabler/icons-react";
@@ -18,6 +19,7 @@ import {
 import { MobileNavUser } from "@/components/MobileNavUser";
 import { OrgGroupSwitcher } from "./OrgGroupSwitcher";
 import { routing } from "@/i18n/routing";
+import { useOrgGroupOptional } from "@/components/providers/OrgGroupProvider";
 
 interface DashboardNavbarProps {
   onToggleSidebar: () => void;
@@ -27,6 +29,7 @@ export function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProps) {
   const locale = useLocale();
   const pathname = usePathname();
   const tBreadcrumb = useTranslations("dashboard.breadcrumb");
+  const orgGroup = useOrgGroupOptional();
 
   const getBreadcrumbItems = () => {
     const items: { label: string; href: string; isActive: boolean }[] = [];
@@ -76,6 +79,18 @@ export function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProps) {
   };
 
   const breadcrumbItems = getBreadcrumbItems();
+
+  // Keep document.title in sync: "CompanyName | PageName" or just "PageName"
+  useEffect(() => {
+    const pageName =
+      breadcrumbItems[breadcrumbItems.length - 1]?.label ?? "Dashboard";
+    const activeId = orgGroup?.activeOrgGroupId;
+    const companyName =
+      activeId && activeId !== "all"
+        ? (orgGroup?.orgGroups.find((g) => g._id === activeId)?.name ?? null)
+        : null;
+    document.title = companyName ? `${companyName} | ${pageName}` : pageName;
+  }, [breadcrumbItems, orgGroup?.activeOrgGroupId, orgGroup?.orgGroups]);
 
   return (
     <div className="top-0 z-50 flex flex-col gap-2">

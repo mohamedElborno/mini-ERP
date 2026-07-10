@@ -5,7 +5,10 @@ import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { logAudit } from "./auditLog";
-import { convertAmountFromCurrencyToDefault } from "./quoteFinance";
+import {
+  convertAmountFromCurrencyToDefault,
+  convertAmountFromDefaultToCurrencyNumber,
+} from "./quoteFinance";
 import { reconcileInvoiceCreditAfterPayment } from "./companyCredit";
 import {
   filterByOrgGroup,
@@ -177,11 +180,25 @@ async function recalcInvoicePaymentStatus(
   const invoice = await ctx.db.get(invoiceId);
   if (!invoice || invoice.status === "void") return;
 
+  // paidTotal is always stored in the DEFAULT currency
   const paidTotal = await getInvoicePaidTotal(ctx, invoiceId);
   const invoiceTotal = invoice.total ?? 0;
 
+  // Convert invoice total to the default currency so both sides use the same unit
+  const defaultCurrencyId = await getDefaultCurrencyIdForGroup(ctx, invoice.group);
+  const allCurrencies = await ctx.db.query("currencies").collect();
+  const invoiceTotalInDefault =
+    defaultCurrencyId && invoice.currency && invoice.currency !== defaultCurrencyId
+      ? convertAmountFromCurrencyToDefault(
+          invoiceTotal,
+          invoice.currency,
+          defaultCurrencyId,
+          allCurrencies,
+        )
+      : invoiceTotal;
+
   let newStatus = invoice.status ?? "draft";
-  if (paidTotal >= invoiceTotal && invoiceTotal > 0) {
+  if (paidTotal >= invoiceTotalInDefault && invoiceTotalInDefault > 0) {
     newStatus = "paid";
     if (invoice.deal) {
       await ctx.db.patch(invoice.deal, {
@@ -759,9 +776,34 @@ export const applyExistingReceiptVoucher = mutation({
         throw new Error("Invoice does not belong to the voucher company.");
       }
 
-      const paidTotal = await getInvoicePaidTotal(ctx, args.invoiceId);
-      const outstanding = Math.max(0, (invoice.total ?? 0) - paidTotal);
-      if (allocAmt > outstanding + 0.001) {
+      // All amounts are converted to the default currency for a consistent comparison
+      const paidTotalInDefault = await getInvoicePaidTotal(ctx, args.invoiceId);
+      const defaultCurrencyIdForCheck = await getDefaultCurrencyId(ctx, voucher.group);
+      const allCurrenciesForCheck = await ctx.db.query("currencies").collect();
+
+      const invoiceTotalInDefault =
+        defaultCurrencyIdForCheck && invoice.currency && invoice.currency !== defaultCurrencyIdForCheck
+          ? convertAmountFromCurrencyToDefault(
+              invoice.total ?? 0,
+              invoice.currency,
+              defaultCurrencyIdForCheck,
+              allCurrenciesForCheck,
+            )
+          : (invoice.total ?? 0);
+
+      const outstandingInDefault = Math.max(0, invoiceTotalInDefault - paidTotalInDefault);
+
+      const allocAmtInDefault =
+        defaultCurrencyIdForCheck && voucher.currency !== defaultCurrencyIdForCheck
+          ? convertAmountFromCurrencyToDefault(
+              allocAmt,
+              voucher.currency,
+              defaultCurrencyIdForCheck,
+              allCurrenciesForCheck,
+            )
+          : allocAmt;
+
+      if (allocAmtInDefault > outstandingInDefault + 0.001) {
         throw new Error("Allocation exceeds invoice outstanding amount.");
       }
 
@@ -1152,8 +1194,23 @@ export const getInvoicePaymentInfo = query({
     const invoice = await ctx.db.get(args.invoiceId);
     if (!invoice) return null;
 
-    const paidTotal = await getInvoicePaidTotal(ctx, args.invoiceId);
+    // paidTotal from DB is always in the DEFAULT currency
+    const paidTotalInDefault = await getInvoicePaidTotal(ctx, args.invoiceId);
     const total = invoice.total ?? 0;
+
+    // Convert paidTotal back to the invoice's own currency for display
+    const defaultCurrencyId = await getDefaultCurrencyIdForGroup(ctx, invoice.group);
+    const allCurrencies = await ctx.db.query("currencies").collect();
+    const paidTotal =
+      invoice.currency && defaultCurrencyId && invoice.currency !== defaultCurrencyId
+        ? convertAmountFromDefaultToCurrencyNumber(
+            paidTotalInDefault,
+            invoice.currency,
+            defaultCurrencyId,
+            allCurrencies,
+          )
+        : paidTotalInDefault;
+
     const outstanding = Math.max(0, total - paidTotal);
 
     return {

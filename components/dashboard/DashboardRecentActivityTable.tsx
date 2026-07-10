@@ -67,45 +67,58 @@ export function DashboardRecentActivityTable({
   };
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-base">{t("activityTitle")}</CardTitle>
+    <Card className="flex h-full flex-col shadow-sm">
+      <CardHeader className="shrink-0">
+        <div className="flex items-center gap-2">
+          {/* Live pulsing indicator */}
+          <span className="relative flex size-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+          </span>
+          <CardTitle className="text-base">{t("activityTitle")}</CardTitle>
+        </div>
         <CardDescription>{t("activityDescription")}</CardDescription>
       </CardHeader>
-      <CardContent className="px-0 pb-0 sm:px-6 sm:pb-6">
+
+      {/* flex-1 + min-h-0 lets the content scroll inside a fixed-height flex parent */}
+      <CardContent className="flex max-h-[525px] min-h-0 flex-1 flex-col px-0 pb-0 sm:px-6 sm:pb-4">
         {visible.length === 0 ? (
           <p className="text-muted-foreground px-6 pb-6 text-sm sm:px-0">
             {t("activityEmpty")}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-border text-muted-foreground border-b text-start">
-                  <th className="px-4 py-2.5 font-medium sm:px-0">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
+            <table className="w-full min-w-[600px] text-sm">
+              <thead className="sticky top-0 bg-card">
+                <tr className="border-border text-muted-foreground border-b">
+                  <th className="px-4 py-2.5 text-start font-medium sm:ps-0">
                     {t("activityColWhen")}
                   </th>
-                  <th className="px-4 py-2.5 font-medium">
+                  <th className="px-4 py-2.5 text-start font-medium">
                     {t("activityColEntity")}
                   </th>
-                  <th className="px-4 py-2.5 font-medium">
+                  <th className="px-4 py-2.5 text-start font-medium">
                     {t("activityColAction")}
                   </th>
-                  <th className="px-4 py-2.5 font-medium">
+                  <th className="px-4 py-2.5 text-start font-medium">
                     {t("activityColUser")}
                   </th>
-                  <th className="px-4 py-2.5 font-medium">
+                  <th className="px-4 py-2.5 text-start font-medium">
                     {t("activityColDetails")}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map((row) => (
+                {visible.map((row, index) => (
                   <tr
                     key={row._id}
-                    className="border-border hover:bg-muted/30 border-b last:border-0"
+                    className="animate-in fade-in slide-in-from-top-1 border-border hover:bg-muted/30 border-b duration-200 last:border-0"
+                    style={{
+                      animationDelay: `${index * 35}ms`,
+                      animationFillMode: "backwards",
+                    }}
                   >
-                    <td className="text-muted-foreground px-4 py-3 whitespace-nowrap sm:px-0">
+                    <td className="text-muted-foreground whitespace-nowrap px-4 py-3 sm:ps-0">
                       {fmtAt(row.timestamp)}
                     </td>
                     <td className="px-4 py-3">
@@ -118,9 +131,7 @@ export function DashboardRecentActivityTable({
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      {actionLabel(row.action, t)}
-                    </td>
+                    <td className="px-4 py-3">{actionLabel(row.action, t)}</td>
                     <td className="px-4 py-3">{row.performedByName}</td>
                     <td className="text-muted-foreground px-4 py-3">
                       {detailFor(row)}

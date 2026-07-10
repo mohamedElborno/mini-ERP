@@ -7,14 +7,14 @@ import {
   IconCurrencyDollar,
   IconFileInvoice,
   IconFileText,
-  IconListDetails,
-  IconTrophy,
+  IconReceipt,
+  IconUserCheck,
 } from "@tabler/icons-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { api } from "@/convex/_generated/api";
 import { DashboardCreditRadialCard } from "@/components/dashboard/DashboardCreditRadialCard";
-import { DashboardDealsRadialChart } from "@/components/dashboard/DashboardDealsRadialChart";
+import { DashboardDealsValueCard } from "@/components/dashboard/DashboardDealsValueCard";
 import { DashboardDocumentSummaryCard } from "@/components/dashboard/DashboardDocumentSummaryCard";
 import {
   DashboardPeriodPicker,
@@ -77,15 +77,18 @@ export default function DashboardPageClient() {
             />
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-          <div className="border-border bg-muted/30 h-[320px] animate-pulse rounded-xl border lg:col-span-3" />
-          <div className="border-border bg-muted/30 h-[320px] animate-pulse rounded-xl border lg:col-span-1" />
+        <div className="border-border bg-muted/30 h-40 animate-pulse rounded-xl border" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="border-border bg-muted/30 h-[300px] animate-pulse rounded-xl border lg:col-span-2" />
+          <div className="border-border bg-muted/30 h-[300px] animate-pulse rounded-xl border" />
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="border-border bg-muted/30 h-[220px] animate-pulse rounded-xl border" />
-          <div className="border-border bg-muted/30 h-[220px] animate-pulse rounded-xl border" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="flex flex-col gap-6">
+            <div className="border-border bg-muted/30 h-[180px] animate-pulse rounded-xl border" />
+            <div className="border-border bg-muted/30 h-[180px] animate-pulse rounded-xl border" />
+          </div>
+          <div className="border-border bg-muted/30 h-[380px] animate-pulse rounded-xl border lg:col-span-2" />
         </div>
-        <div className="border-border bg-muted/30 h-64 animate-pulse rounded-xl border" />
       </div>
     );
   }
@@ -103,65 +106,62 @@ export default function DashboardPageClient() {
         locale={locale}
       />
 
+      {/* Top KPIs: 4 cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={<IconBuilding className="size-5" />}
           label={t("kpiClients")}
           value={fmtInt(metrics.clientsCount)}
           muted={!metrics.canReadCompanies}
+          hint={t("kpiClientsHint")}
         />
         <KpiCard
-          icon={<IconListDetails className="size-5" />}
-          label={t("kpiDeals")}
-          value={fmtInt(metrics.dealsTotal)}
-          muted={!metrics.canReadDeals}
-        />
-        <KpiCard
-          icon={<IconTrophy className="size-5" />}
-          label={t("kpiWonDeals")}
-          value={fmtInt(metrics.wonDealsCount)}
-          muted={!metrics.canReadDeals}
+          icon={<IconUserCheck className="size-5" />}
+          label={t("kpiActiveClients")}
+          value={fmtInt(metrics.activeClientsCount)}
+          muted={
+            !metrics.canReadDeals &&
+            !metrics.canReadInvoices &&
+            !metrics.canReadQuotes &&
+            !metrics.canReadReceiptVouchers
+          }
+          hint={t("kpiActiveClientsHint")}
         />
         <KpiCard
           icon={<IconCurrencyDollar className="size-5" />}
           label={t("kpiPaidSales")}
           value={fmtMoney(metrics.paidSalesTotal)}
           muted={!metrics.canReadReceiptVouchers}
+          hint={t("kpiPaidSalesHint")}
+        />
+        <KpiCard
+          icon={<IconReceipt className="size-5" />}
+          label={t("kpiReceiptVouchers")}
+          value={fmtInt(metrics.receiptVouchersCount)}
+          muted={!metrics.canReadReceiptVouchers}
+          hint={t("kpiReceiptVouchersHint")}
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {metrics.canReadCompanies && metrics.creditSummary ? (
-          <DashboardCreditRadialCard summary={metrics.creditSummary} />
-        ) : (
-          <div className="border-border text-muted-foreground flex min-h-[200px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
-            {t("creditSummaryNoAccess")}
-          </div>
-        )}
-        <KpiCard
-          icon={<IconListDetails className="size-5" />}
-          label={t("dealsTotalValue")}
-          value={
-            metrics.canReadDeals && metrics.dealsValueSummary
-              ? fmtMoney(metrics.dealsValueSummary.totalValue)
-              : "—"
-          }
-          muted={!metrics.canReadDeals}
+      {/* Deals unified card */}
+      {metrics.canReadDeals ? (
+        <DashboardDealsValueCard
+          dealsTotal={metrics.dealsTotal}
+          wonDealsCount={metrics.wonDealsCount}
+          lostDealsCount={metrics.lostDealsCount}
+          dealsValueSummary={metrics.dealsValueSummary}
+          formatMoney={fmtMoney}
+          formatInt={fmtInt}
         />
-        <KpiCard
-          icon={<IconTrophy className="size-5" />}
-          label={t("dealsWonValue")}
-          value={
-            metrics.canReadDeals && metrics.dealsValueSummary
-              ? fmtMoney(metrics.dealsValueSummary.wonValue)
-              : "—"
-          }
-          muted={!metrics.canReadDeals}
-        />
-      </div>
+      ) : (
+        <div className="border-border text-muted-foreground flex min-h-[140px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
+          {t("dealsValueNoAccess")}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <div className="min-w-0 lg:col-span-3">
+      {/* Chart + Credit side by side */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           {metrics.canReadReceiptVouchers ? (
             <DashboardSalesChart
               data={metrics.salesSeries}
@@ -178,71 +178,74 @@ export default function DashboardPageClient() {
             </div>
           )}
         </div>
-        <div className="min-w-0 lg:col-span-1">
-          {metrics.canReadDeals ? (
-            <DashboardDealsRadialChart
-              won={metrics.wonDealsCount ?? 0}
-              lost={metrics.lostDealsCount ?? 0}
-            />
+        <div className="min-w-0">
+          {metrics.canReadCompanies && metrics.creditSummary ? (
+            <DashboardCreditRadialCard summary={metrics.creditSummary} />
           ) : (
-            <div className="border-border text-muted-foreground flex min-h-[140px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
-              {t("dealsRadialNoAccess")}
+            <div className="border-border text-muted-foreground flex min-h-[200px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
+              {t("creditSummaryNoAccess")}
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {metrics.canReadQuotes && metrics.quoteSummary ? (
-          <DashboardDocumentSummaryCard
-            title={t("quotesSummaryTitle")}
-            description={t("quotesSummaryDescription")}
-            icon={<IconFileText className="size-5" />}
-            stats={metrics.quoteSummary}
-            labels={{
-              count: t("summaryCount"),
-              totalValue: t("summaryTotalValue"),
-              approved: t("summaryApproved"),
-              cancelled: t("summaryCancelled"),
-            }}
-            formatMoney={fmtMoney}
-            formatInt={fmtInt}
-          />
-        ) : (
-          <div className="border-border text-muted-foreground flex min-h-[200px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
-            {t("quotesSummaryNoAccess")}
-          </div>
-        )}
-
-        {metrics.canReadInvoices && metrics.invoiceSummary ? (
-          <DashboardDocumentSummaryCard
-            title={t("invoicesSummaryTitle")}
-            description={t("invoicesSummaryDescription")}
-            icon={<IconFileInvoice className="size-5" />}
-            stats={metrics.invoiceSummary}
-            labels={{
-              count: t("summaryCount"),
-              totalValue: t("summaryTotalValue"),
-              approved: t("summaryApproved"),
-              cancelled: t("summaryCancelled"),
-            }}
-            formatMoney={fmtMoney}
-            formatInt={fmtInt}
-          />
-        ) : (
-          <div className="border-border text-muted-foreground flex min-h-[200px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
-            {t("invoicesSummaryNoAccess")}
-          </div>
-        )}
-      </div>
-
-      {metrics.canReadActivity ? (
-        <DashboardRecentActivityTable items={metrics.recentActivity} />
-      ) : (
-        <div className="border-border text-muted-foreground flex min-h-[160px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
-          {t("activityNoAccess")}
+      {/* Documents (quotes + invoices) beside activity */}
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+        {/* Quotes and invoices stacked */}
+        <div className="flex flex-col gap-6">
+          {metrics.canReadQuotes && metrics.quoteSummary ? (
+            <DashboardDocumentSummaryCard
+              title={t("quotesSummaryTitle")}
+              description={t("quotesSummaryDescription")}
+              icon={<IconFileText className="size-5" />}
+              stats={metrics.quoteSummary}
+              labels={{
+                count: t("summaryCount"),
+                totalValue: t("summaryTotalValue"),
+                approved: t("summaryApproved"),
+                cancelled: t("summaryCancelled"),
+              }}
+              formatMoney={fmtMoney}
+              formatInt={fmtInt}
+            />
+          ) : (
+            <div className="border-border text-muted-foreground flex min-h-[180px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
+              {t("quotesSummaryNoAccess")}
+            </div>
+          )}
+          {metrics.canReadInvoices && metrics.invoiceSummary ? (
+            <DashboardDocumentSummaryCard
+              title={t("invoicesSummaryTitle")}
+              description={t("invoicesSummaryDescription")}
+              icon={<IconFileInvoice className="size-5" />}
+              stats={metrics.invoiceSummary}
+              labels={{
+                count: t("summaryCount"),
+                totalValue: t("summaryTotalValue"),
+                approved: t("summaryApproved"),
+                cancelled: t("summaryCancelled"),
+              }}
+              formatMoney={fmtMoney}
+              formatInt={fmtInt}
+            />
+          ) : (
+            <div className="border-border text-muted-foreground flex min-h-[180px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
+              {t("invoicesSummaryNoAccess")}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Activity table — h-full so the card stretches to match the stacked cards */}
+        <div className="min-w-0 lg:col-span-2 lg:h-full">
+          {metrics.canReadActivity ? (
+            <DashboardRecentActivityTable items={metrics.recentActivity} />
+          ) : (
+            <div className="border-border text-muted-foreground flex min-h-[160px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm">
+              {t("activityNoAccess")}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -252,11 +255,13 @@ function KpiCard({
   label,
   value,
   muted,
+  hint,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   muted: boolean;
+  hint?: string;
 }) {
   return (
     <div
@@ -270,6 +275,7 @@ function KpiCard({
         {label}
       </div>
       <p className="mt-3 text-2xl font-semibold tabular-nums">{value}</p>
+      {hint && <p className="text-muted-foreground mt-1 text-xs">{hint}</p>}
     </div>
   );
 }

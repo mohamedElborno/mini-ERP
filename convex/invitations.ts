@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { action, internalMutation, mutation, query } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // ============================================================================
 // INTERNAL — store or replace a pending invitation (called from the action)
@@ -51,7 +51,7 @@ export const updateClerkId = internalMutation({
 // INTERNAL — helper query for the action to verify sender permissions
 // ============================================================================
 
-export const getSenderInfo = query({
+export const getSenderInfo = internalQuery({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
     const user = await ctx.db
@@ -164,7 +164,7 @@ export const inviteEmployee = action({
     if (!identity) throw new Error("Unauthorized");
 
     // Verify caller has permission
-    const sender = await ctx.runQuery(api.invitations.getSenderInfo, {
+    const sender = await ctx.runQuery(internal.invitations.getSenderInfo, {
       clerkId: identity.subject,
     });
     if (!sender)

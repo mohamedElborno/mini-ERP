@@ -504,6 +504,10 @@ export const getDashboardMetrics = query({
       Id<"currencies"> | undefined
     >();
 
+    // Accumulates company IDs across all accessible document types to count active clients
+    const activeClientIdsInPeriod = new Set<string>();
+    let receiptVouchersCount: number | null = null;
+
     let clientsCount: number | null = null;
     let creditSummary: {
       totalLimit: number;
@@ -541,6 +545,7 @@ export const getDashboardMetrics = query({
     let dealsValueSummary: {
       totalValue: number;
       wonValue: number;
+      wonInvoicesValue: number | null;
     } | null = null;
 
     if (canDeals) {
@@ -557,6 +562,7 @@ export const getDashboardMetrics = query({
 
       let totalValue = 0;
       let wonValue = 0;
+      const wonDeals: Doc<"deals">[] = [];
       for (const deal of deals as Doc<"deals">[]) {
         const value = await dealValueInDefault(
           ctx,
@@ -565,9 +571,40 @@ export const getDashboardMetrics = query({
           defaultCurrencyCache,
         );
         totalValue += value;
-        if (deal.stage === "won") wonValue += value;
+        if (deal.stage === "won") {
+          wonValue += value;
+          wonDeals.push(deal);
+        }
       }
-      dealsValueSummary = { totalValue, wonValue };
+
+      // Sum actual invoice totals for won deals (only when the user can read invoices)
+      let wonInvoicesValue: number | null = null;
+      if (canInvoices && wonDeals.length > 0) {
+        wonInvoicesValue = 0;
+        for (const deal of wonDeals) {
+          const dealInvoices = await ctx.db
+            .query("invoices")
+            .withIndex("by_deal", (q: any) => q.eq("deal", deal._id))
+            .collect();
+          for (const inv of dealInvoices) {
+            wonInvoicesValue += await documentTotalInDefault(
+              ctx,
+              inv,
+              currencies,
+              defaultCurrencyCache,
+            );
+          }
+        }
+      }
+
+      dealsValueSummary = { totalValue, wonValue, wonInvoicesValue };
+
+      // Track active clients from deals in the period
+      for (const deal of deals as Doc<"deals">[]) {
+        if (inPeriod(deal, args.periodStart, args.periodEnd) && deal.company) {
+          activeClientIdsInPeriod.add(deal.company);
+        }
+      }
     }
 
     let paidSalesTotal: number | null = null;
@@ -628,6 +665,12 @@ export const getDashboardMetrics = query({
           sales: bucketTotals.get(t) ?? 0,
         });
       }
+
+      // Count vouchers in the period and track active clients
+      receiptVouchersCount = vouchersInPeriod.length;
+      for (const voucher of vouchersInPeriod) {
+        activeClientIdsInPeriod.add(voucher.company);
+      }
     }
 
     if (canInvoices) {
@@ -670,6 +713,11 @@ export const getDashboardMetrics = query({
         cancelledCount: invoicesInPeriod.filter((inv) => inv.status === "void")
           .length,
       };
+
+      // Track active clients from invoices in the period
+      for (const inv of invoicesInPeriod) {
+        if (inv.company) activeClientIdsInPeriod.add(inv.company);
+      }
     }
 
     let quoteSummary: {
@@ -714,6 +762,11 @@ export const getDashboardMetrics = query({
           (q) => q.status === "rejected" || q.status === "expired",
         ).length,
       };
+
+      // Track active clients from quotes in the period
+      for (const q of quotesInPeriod) {
+        if (q.company) activeClientIdsInPeriod.add(q.company as string);
+      }
     }
 
     const activity = await loadRecentActivity(
@@ -725,14 +778,23 @@ export const getDashboardMetrics = query({
       filter,
     );
 
+    // activeClientsCount: unique clients with any deal/quote/invoice/voucher in the period
+    const canCountActive =
+      canDeals || canVouchers || canInvoices || canQuotes;
+    const activeClientsCount = canCountActive
+      ? activeClientIdsInPeriod.size
+      : null;
+
     return {
       clientsCount,
+      activeClientsCount,
       dealsTotal,
       wonDealsCount,
       lostDealsCount,
       dealsValueSummary,
       creditSummary,
       paidSalesTotal,
+      receiptVouchersCount,
       salesSeries,
       quoteSummary,
       invoiceSummary,
