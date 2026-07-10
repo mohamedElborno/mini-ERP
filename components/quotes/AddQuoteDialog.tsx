@@ -19,7 +19,10 @@ import {
   type EnrichedDeal,
   type LineItemForm,
 } from "./quoteFormShared";
-import { QuoteFormMetaSection, type QuotePaymentMethod } from "./QuoteFormMetaSection";
+import {
+  QuoteFormMetaSection,
+  type QuotePaymentMethod,
+} from "./QuoteFormMetaSection";
 import { QuoteFormTotalsSection } from "./QuoteFormTotalsSection";
 import { QuoteLineItemsSection } from "./QuoteLineItemsSection";
 import { QuoteTaxTemplateSection } from "./QuoteTaxTemplateSection";
@@ -93,9 +96,7 @@ export function AddQuoteDialog({
 
   const canOversellQuotes = useMemo(() => {
     const perms = currentUser?.roleDetails?.permissions ?? [];
-    return (
-      perms.includes("admin:all") || perms.includes("quotes:oversell")
-    );
+    return perms.includes("admin:all") || perms.includes("quotes:oversell");
   }, [currentUser]);
 
   const defaultCurrencyId = useMemo(() => {
@@ -188,13 +189,7 @@ export function AddQuoteDialog({
       shipping,
       shippingTaxPayload,
     );
-  }, [
-    lines,
-    taxesList,
-    generalDiscount,
-    shipping,
-    shippingTaxIds,
-  ]);
+  }, [lines, taxesList, generalDiscount, shipping, shippingTaxIds]);
 
   const handleLineChange = (key: string, patch: Partial<LineItemForm>) => {
     setLines((prev) =>
@@ -269,8 +264,10 @@ export function AddQuoteDialog({
           };
         });
 
-      const shippingTaxPayload =
-        buildShippingTaxesPayload(shippingTaxIds, taxesList);
+      const shippingTaxPayload = buildShippingTaxesPayload(
+        shippingTaxIds,
+        taxesList,
+      );
 
       await createQuote({
         deal: dealId as Id<"deals">,
@@ -329,7 +326,7 @@ export function AddQuoteDialog({
 
         <form
           onSubmit={handleSubmit}
-          className="flex max-h-[calc(85vh-4rem)] flex-col overflow-hidden md:max-h-[85vh]"
+          className="flex max-h-[calc(74vh-4rem)] flex-col overflow-hidden md:max-h-[85vh]"
         >
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
             <QuoteFormMetaSection
