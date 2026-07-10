@@ -33,6 +33,7 @@ import { QuoteLineItemsSection } from "./QuoteLineItemsSection";
 import { QuoteTaxTemplateSection } from "./QuoteTaxTemplateSection";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 import { CreateInvoicePreviewDialog } from "./CreateInvoicePreviewDialog";
+import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
 
 type QuoteStatus = NonNullable<Doc<"quotes">["status"]>;
 const STATUSES = [
@@ -469,6 +470,7 @@ export function QuoteViewEditDialog({
                 <IconHistory className="h-5 w-5" />
               </button>
             )}
+            {quoteId && <PrintDocumentButton type="quote" id={quoteId} size="sm" />}
             <button
               type="button"
               onClick={handleClose}

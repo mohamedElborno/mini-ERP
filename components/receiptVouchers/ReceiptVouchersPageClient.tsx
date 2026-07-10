@@ -13,6 +13,7 @@ import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { AddReceiptVoucherDialog } from "./AddReceiptVoucherDialog";
 import { ReceiptVoucherAuditLogDialog } from "./ReceiptVoucherAuditLogDialog";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
+import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
 import {
   ListSearchInput,
   PageNavigationBar,
@@ -155,15 +156,18 @@ function VouchersTable({
                   {v.references?.length ?? 0}
                 </td>
                 <td className="px-2 py-3">
-                  <button
-                    type="button"
-                    onClick={() => onAudit(v._id)}
-                    className="text-muted-foreground hover:text-foreground inline-flex items-center justify-center rounded-lg p-2 hover:bg-muted"
-                    title={t("auditLogOpenButton")}
-                    aria-label={t("auditLogOpenButton")}
-                  >
-                    <IconHistory className="h-4 w-4" />
-                  </button>
+                  <div className="inline-flex items-center gap-1">
+                    <PrintDocumentButton type="receipt-voucher" id={v._id} size="sm" />
+                    <button
+                      type="button"
+                      onClick={() => onAudit(v._id)}
+                      className="text-muted-foreground hover:text-foreground inline-flex items-center justify-center rounded-lg p-2 hover:bg-muted"
+                      title={t("auditLogOpenButton")}
+                      aria-label={t("auditLogOpenButton")}
+                    >
+                      <IconHistory className="h-4 w-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

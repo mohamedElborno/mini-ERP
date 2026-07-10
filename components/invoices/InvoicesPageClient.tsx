@@ -5,6 +5,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { IconEye, IconCash, IconReceipt, IconList } from "@tabler/icons-react";
+import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { InvoiceViewDialog } from "@/components/invoices/InvoiceViewDialog";
@@ -161,7 +162,7 @@ function InvoicesTable({
               <th className="text-muted-foreground px-4 py-3 text-right font-medium">
                 {t("colTotal")}
               </th>
-              <th className="w-28 px-2 py-3" />
+              <th className="w-40 px-2 py-3" />
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
@@ -235,6 +236,7 @@ function InvoicesTable({
                   </td>
                   <td className="px-2 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <PrintDocumentButton type="invoice" id={inv._id} size="sm" />
                       <button
                         type="button"
                         onClick={() => onViewReceiptVouchers(inv._id)}

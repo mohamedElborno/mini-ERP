@@ -185,10 +185,15 @@ async function recalcInvoicePaymentStatus(
   const invoiceTotal = invoice.total ?? 0;
 
   // Convert invoice total to the default currency so both sides use the same unit
-  const defaultCurrencyId = await getDefaultCurrencyIdForGroup(ctx, invoice.group);
+  const defaultCurrencyId = await getDefaultCurrencyIdForGroup(
+    ctx,
+    invoice.group,
+  );
   const allCurrencies = await ctx.db.query("currencies").collect();
   const invoiceTotalInDefault =
-    defaultCurrencyId && invoice.currency && invoice.currency !== defaultCurrencyId
+    defaultCurrencyId &&
+    invoice.currency &&
+    invoice.currency !== defaultCurrencyId
       ? convertAmountFromCurrencyToDefault(
           invoiceTotal,
           invoice.currency,
@@ -254,10 +259,7 @@ function validateAllocations(
 
 function validateVoucherContext(args: {
   voucherContext:
-    | "general_credit"
-    | "invoice_payment"
-    | "deal_advance"
-    | "quote_advance";
+    "general_credit" | "invoice_payment" | "deal_advance" | "quote_advance";
   deal?: Id<"deals">;
   quote?: Id<"quotes">;
   references: Id<"invoices">[];
@@ -778,11 +780,16 @@ export const applyExistingReceiptVoucher = mutation({
 
       // All amounts are converted to the default currency for a consistent comparison
       const paidTotalInDefault = await getInvoicePaidTotal(ctx, args.invoiceId);
-      const defaultCurrencyIdForCheck = await getDefaultCurrencyId(ctx, voucher.group);
+      const defaultCurrencyIdForCheck = await getDefaultCurrencyId(
+        ctx,
+        voucher.group,
+      );
       const allCurrenciesForCheck = await ctx.db.query("currencies").collect();
 
       const invoiceTotalInDefault =
-        defaultCurrencyIdForCheck && invoice.currency && invoice.currency !== defaultCurrencyIdForCheck
+        defaultCurrencyIdForCheck &&
+        invoice.currency &&
+        invoice.currency !== defaultCurrencyIdForCheck
           ? convertAmountFromCurrencyToDefault(
               invoice.total ?? 0,
               invoice.currency,
@@ -791,10 +798,14 @@ export const applyExistingReceiptVoucher = mutation({
             )
           : (invoice.total ?? 0);
 
-      const outstandingInDefault = Math.max(0, invoiceTotalInDefault - paidTotalInDefault);
+      const outstandingInDefault = Math.max(
+        0,
+        invoiceTotalInDefault - paidTotalInDefault,
+      );
 
       const allocAmtInDefault =
-        defaultCurrencyIdForCheck && voucher.currency !== defaultCurrencyIdForCheck
+        defaultCurrencyIdForCheck &&
+        voucher.currency !== defaultCurrencyIdForCheck
           ? convertAmountFromCurrencyToDefault(
               allocAmt,
               voucher.currency,
@@ -1199,10 +1210,15 @@ export const getInvoicePaymentInfo = query({
     const total = invoice.total ?? 0;
 
     // Convert paidTotal back to the invoice's own currency for display
-    const defaultCurrencyId = await getDefaultCurrencyIdForGroup(ctx, invoice.group);
+    const defaultCurrencyId = await getDefaultCurrencyIdForGroup(
+      ctx,
+      invoice.group,
+    );
     const allCurrencies = await ctx.db.query("currencies").collect();
     const paidTotal =
-      invoice.currency && defaultCurrencyId && invoice.currency !== defaultCurrencyId
+      invoice.currency &&
+      defaultCurrencyId &&
+      invoice.currency !== defaultCurrencyId
         ? convertAmountFromDefaultToCurrencyNumber(
             paidTotalInDefault,
             invoice.currency,
@@ -1354,5 +1370,64 @@ export const repairVoucherExchangeRates = internalMutation({
     }
 
     return { repaired };
+  },
+});
+
+/** Full receipt voucher data for PDF printing */
+export const getVoucherForPrint = query({
+  args: { id: v.id("receiptVouchers") },
+  handler: async (ctx, args) => {
+    const voucher = await loadVoucherIfReadable(ctx, args.id);
+    if (!voucher) return null;
+
+    const company = await ctx.db.get(voucher.company);
+    const contact = await ctx.db.get(voucher.contact);
+    const currency = await ctx.db.get(voucher.currency);
+    const group = voucher.group ? await ctx.db.get(voucher.group) : null;
+
+    // Linked invoices with their allocations
+    const allocations = voucher.allocations ?? [];
+    const invoiceDetails = await Promise.all(
+      allocations.map(async (alloc) => {
+        const inv = await ctx.db.get(alloc.invoiceId);
+        return inv
+          ? {
+              invoiceId: inv._id,
+              number: inv.number ?? "—",
+              total: inv.total ?? 0,
+              allocated: alloc.amount,
+              allocatedInDefault: alloc.amountInDefaultCurrency ?? null,
+            }
+          : null;
+      }),
+    );
+
+    return {
+      voucher,
+      company: company
+        ? {
+            name: company.name,
+            address: company.address,
+            city: company.city,
+            country: company.country,
+            phone: company.phoneNumber,
+            email: company.email,
+          }
+        : null,
+      contact: contact
+        ? {
+            name:
+              [contact.firstName, contact.lastName].filter(Boolean).join(" ") ||
+              contact.email ||
+              "—",
+            email: contact.email,
+            phone: contact.phoneNumber,
+          }
+        : null,
+      group: group ? { name: group.name } : null,
+      currencySymbol: currency?.symbol ?? null,
+      currencyName: currency?.name ?? null,
+      invoiceDetails: invoiceDetails.filter(Boolean),
+    };
   },
 });

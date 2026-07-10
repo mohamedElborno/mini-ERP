@@ -10,6 +10,7 @@ import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { AddQuoteDialog } from "@/components/quotes/AddQuoteDialog";
 import { QuoteAuditLogDialog } from "@/components/quotes/QuoteAuditLogDialog";
 import { QuoteViewEditDialog } from "@/components/quotes/QuoteViewEditDialog";
+import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
 import { formatQuoteWithRevision } from "@/lib/quoteDisplay";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 import {
@@ -159,7 +160,7 @@ function QuotesTable({
               <th className="text-muted-foreground px-4 py-3 text-right font-medium">
                 {t("colTotal")}
               </th>
-              <th className="w-24 px-2 py-3" />
+              <th className="w-36 px-2 py-3" />
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
@@ -236,6 +237,7 @@ function QuotesTable({
                   </td>
                   <td className="px-2 py-3">
                     <div className="flex items-center justify-end gap-0.5">
+                      <PrintDocumentButton type="quote" id={quote._id} size="sm" />
                       <button
                         type="button"
                         onClick={() => onOpenAudit(quote._id)}

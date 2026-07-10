@@ -485,11 +485,7 @@ export const listInvoicesPaginated = query({
     const statusFilter = args.statusFilter;
 
     const buildFetch = (opts: typeof args.paginationOpts) => {
-      if (
-        groupIds.length === 1 &&
-        statusFilter &&
-        statusFilter !== "all"
-      ) {
+      if (groupIds.length === 1 && statusFilter && statusFilter !== "all") {
         return ctx.db
           .query("invoices")
           .withIndex("by_group_status", (q) =>
@@ -549,9 +545,7 @@ export const listInvoicesPaginated = query({
       ...result,
       page: result.page.map((invoice) => ({
         ...invoice,
-        dealTitle: invoice.deal
-          ? (dealTitleMap.get(invoice.deal) ?? "—")
-          : "—",
+        dealTitle: invoice.deal ? (dealTitleMap.get(invoice.deal) ?? "—") : "—",
         companyName: invoice.company
           ? (companyTitleMap.get(invoice.company) ?? null)
           : null,
@@ -640,6 +634,109 @@ export const getInvoiceWithDetails = query({
       quoteNumber: quote?.number ?? null,
       quoteRevision: quote?.revision,
       dealTitle: deal?.title ?? null,
+    };
+  },
+});
+
+/** Full invoice data for PDF printing */
+export const getInvoiceForPrint = query({
+  args: { id: v.id("invoices") },
+  handler: async (ctx, args) => {
+    const invoice = await loadInvoiceIfReadable(ctx, args.id);
+    if (!invoice) return null;
+
+    const company = invoice.company ? await ctx.db.get(invoice.company) : null;
+    const contact = await ctx.db.get(invoice.contact);
+    const group = invoice.group ? await ctx.db.get(invoice.group) : null;
+    const currency = invoice.currency
+      ? await ctx.db.get(invoice.currency)
+      : null;
+    const quote = await ctx.db.get(invoice.quote);
+
+    // Product names
+    const productMap = new Map<string, string>();
+    for (const item of invoice.lineItems ?? []) {
+      if (!productMap.has(item.product)) {
+        const p = await ctx.db.get(item.product);
+        if (p) productMap.set(item.product, p.name);
+      }
+    }
+    // Service names
+    const serviceMap = new Map<string, string>();
+    for (const item of invoice.services ?? []) {
+      if (!serviceMap.has(item.service)) {
+        const s = await ctx.db.get(item.service);
+        if (s) serviceMap.set(item.service, s.name);
+      }
+    }
+    // Terms
+    const paymentTerms = invoice.paymentTerms
+      ? await ctx.db.get(invoice.paymentTerms)
+      : null;
+    const shippingTerms = invoice.shippingTerms
+      ? await ctx.db.get(invoice.shippingTerms)
+      : null;
+    const deliveryTerms = invoice.deliveryTerms
+      ? await ctx.db.get(invoice.deliveryTerms)
+      : null;
+
+    return {
+      invoice,
+      company: company
+        ? {
+            name: company.name,
+            address: company.address,
+            city: company.city,
+            country: company.country,
+            phone: company.phoneNumber,
+            email: company.email,
+          }
+        : null,
+      contact: contact
+        ? {
+            name:
+              [contact.firstName, contact.lastName].filter(Boolean).join(" ") ||
+              contact.email ||
+              "—",
+            email: contact.email,
+            phone: contact.phoneNumber,
+            jobTitle: contact.jobTitle,
+          }
+        : null,
+      group: group ? { name: group.name } : null,
+      currency: currency
+        ? { symbol: currency.symbol, name: currency.name }
+        : null,
+      quoteRef: quote
+        ? { number: quote.number, revision: quote.revision }
+        : null,
+      lineItems: (invoice.lineItems ?? []).map((item, i) => ({
+        index: i + 1,
+        name: productMap.get(item.product) ?? "—",
+        quantity: item.quantity,
+        price: item.price,
+        discount: item.discount ?? 0,
+        priceAfterDiscount: item.priceAfterDiscount ?? item.price,
+        subtotal: item.subtotal ?? 0,
+        taxes: item.taxes ?? [],
+        taxAmount: item.taxAmount ?? 0,
+        total: item.totalAfterTax ?? 0,
+      })),
+      services: (invoice.services ?? []).map((item, i) => ({
+        index: (invoice.lineItems?.length ?? 0) + i + 1,
+        name: serviceMap.get(item.service) ?? "—",
+        quantity: item.quantity,
+        price: item.price,
+        discount: item.discount ?? 0,
+        priceAfterDiscount: item.priceAfterDiscount ?? item.price,
+        subtotal: item.subtotal ?? 0,
+        taxes: item.taxes ?? [],
+        taxAmount: item.taxAmount ?? 0,
+        total: item.totalAfterTax ?? 0,
+      })),
+      paymentTermsName: paymentTerms?.name ?? null,
+      shippingTermsName: shippingTerms?.name ?? null,
+      deliveryTermsName: deliveryTerms?.name ?? null,
     };
   },
 });

@@ -803,7 +803,7 @@
     "dealsRadialWon": "ناجحة",
     "dealsRadialLost": "خاسرة",
     "dealsRadialNoAccess": "تحتاج صلاحية قراءة الصفقات لعرض هذا الرسم.",
-    "creditSummaryTitle": "كريدت العملاء (أجل)",
+    "creditSummaryTitle": "كريدت العملاء (آجل)",
     "creditSummaryDescription": "مجموع حدود الائتمان والمستخدم عبر العملاء المتاحين.",
     "creditSummaryNoAccess": "تحتاج صلاحية قراءة العملاء لعرض إجمالي الكريدت.",
     "creditTotalLimit": "مجموع حد الائتمان",

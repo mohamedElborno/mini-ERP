@@ -37,6 +37,11 @@ function isSignInPathname(pathname: string | null) {
   return pathname === "/sign-in" || pathname.startsWith("/sign-in/");
 }
 
+function isPrintPathname(pathname: string | null) {
+  if (!pathname) return false;
+  return pathname === "/print" || pathname.startsWith("/print/");
+}
+
 export default function DashboardLayoutClient({
   children,
 }: DashboardLayoutClientProps) {
@@ -140,6 +145,10 @@ export default function DashboardLayoutClient({
 
   if (isSignInPathname(pathname)) {
     return <div className="min-h-screen w-full">{children}</div>;
+  }
+
+  if (isPrintPathname(pathname)) {
+    return <>{children}</>;
   }
 
   return (

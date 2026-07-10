@@ -8,6 +8,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { formatQuoteWithRevision } from "@/lib/quoteDisplay";
 import { labelCls } from "@/components/quotes/quoteFormShared";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
+import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
 
 type Props = {
   open: boolean;
@@ -123,6 +124,7 @@ export function InvoiceViewDialog({
               </p>
             )}
           </div>
+          {invoiceId && <PrintDocumentButton type="invoice" id={invoiceId} size="sm" />}
           <button
             type="button"
             onClick={onClose}
