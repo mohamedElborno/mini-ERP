@@ -229,7 +229,7 @@ export default function DashboardPageClient() {
               stats={metrics.invoiceSummary}
               labels={{
                 count: t("summaryCount"),
-                totalValue: t("summaryTotalValue"),
+                totalValue: t("summaryPaidValue"),
                 approved: t("summaryApproved"),
                 cancelled: t("summaryCancelled"),
               }}

@@ -110,18 +110,28 @@ async function getDefaultCurrencyId(
   return getDefaultCurrencyIdForGroup(ctx, groupId);
 }
 
-/** Sum of amounts allocated to an invoice across all receipt vouchers */
+/** Sum of amounts allocated to an invoice across all receipt vouchers (default currency). */
 export async function getInvoicePaidTotal(
   ctx: QueryCtx | MutationCtx,
   invoiceId: Id<"invoices">,
 ): Promise<number> {
+  const currencies = await ctx.db.query("currencies").collect();
   const vouchers = await ctx.db.query("receiptVouchers").collect();
   let total = 0;
-  for (const v of vouchers) {
-    for (const alloc of v.allocations ?? []) {
-      if (alloc.invoiceId === invoiceId) {
-        total += alloc.amountInDefaultCurrency ?? alloc.amount;
+  for (const voucher of vouchers) {
+    const defaultCurrencyId = await getDefaultCurrencyId(ctx, voucher.group);
+    for (const alloc of voucher.allocations ?? []) {
+      if (alloc.invoiceId !== invoiceId) continue;
+      if (alloc.amountInDefaultCurrency != null) {
+        total += alloc.amountInDefaultCurrency;
+        continue;
       }
+      total += convertAmountFromCurrencyToDefault(
+        alloc.amount,
+        voucher.currency,
+        defaultCurrencyId,
+        currencies,
+      );
     }
   }
   return total;

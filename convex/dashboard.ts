@@ -6,6 +6,7 @@ import {
   convertAmountFromCurrencyToDefault,
 } from "./quoteFinance";
 import { computeCreditSummary } from "./companyCredit";
+import { getInvoicePaidTotal } from "./receiptVouchers";
 import {
   canReadInvoiceRow,
   canReadQuoteRow,
@@ -749,12 +750,17 @@ export const getDashboardMetrics = query({
 
       let invoiceTotalValue = 0;
       for (const inv of invoicesInPeriod) {
-        invoiceTotalValue += await documentTotalInDefault(
-          ctx,
-          inv,
-          currencies,
-          defaultCurrencyCache,
-        );
+        const status = inv.status ?? "draft";
+        if (status === "paid") {
+          invoiceTotalValue += await documentTotalInDefault(
+            ctx,
+            inv,
+            currencies,
+            defaultCurrencyCache,
+          );
+        } else if (status === "partially_paid") {
+          invoiceTotalValue += await getInvoicePaidTotal(ctx, inv._id);
+        }
       }
       invoiceSummary = {
         count: invoicesInPeriod.length,
