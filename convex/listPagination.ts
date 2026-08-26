@@ -258,8 +258,14 @@ export function companyMatchesSearch(company: Doc<"companies">, term: string) {
   const name = company.name.toLowerCase();
   const email = company.email?.toLowerCase() ?? "";
   const phone = company.phoneNumber?.toLowerCase() ?? "";
+  const taxNumber = company.taxNumber?.toLowerCase() ?? "";
+  const nationalAddress = company.nationalAddress?.toLowerCase() ?? "";
   return (
-    name.includes(term) || email.includes(term) || phone.includes(term)
+    name.includes(term) ||
+    email.includes(term) ||
+    phone.includes(term) ||
+    taxNumber.includes(term) ||
+    nationalAddress.includes(term)
   );
 }
 

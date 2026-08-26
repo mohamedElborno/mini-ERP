@@ -176,3 +176,34 @@ export async function getDefaultCurrencyIdForGroup(
   const all = await ctx.db.query("currencies").collect();
   return all.find((c) => c.default)?._id;
 }
+
+export async function getGroupBrandingForPrint(
+  ctx: QueryCtx,
+  groupId: Id<"groups"> | undefined,
+) {
+  if (!groupId) return null;
+  const group = await ctx.db.get(groupId);
+  if (!group) return null;
+
+  const settings = await getSettingsByGroup(ctx, groupId);
+  let logoUrl: string | null = null;
+
+  const logoStorageId =
+    group.logoStorageId ?? settings?.companyLogoStorageId ?? null;
+  if (logoStorageId) {
+    logoUrl = await ctx.storage.getUrl(logoStorageId);
+  }
+
+  return {
+    name: group.name,
+    logoUrl,
+    taxNumber: group.taxNumber ?? null,
+    nationalAddress: group.nationalAddress ?? null,
+    buildingNumber: group.buildingNumber ?? null,
+    address: group.address ?? null,
+    district: group.district ?? null,
+    secondaryNumber: group.secondaryNumber ?? null,
+    city: group.city ?? null,
+    zipCode: group.zipCode ?? null,
+  };
+}

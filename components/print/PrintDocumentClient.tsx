@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { PrintLang } from "./printLabels";
@@ -10,6 +10,8 @@ import { QuotePrintView } from "./QuotePrintView";
 import { InvoicePrintView } from "./InvoicePrintView";
 import { VoucherPrintView } from "./VoucherPrintView";
 import { PrintShell } from "./PrintShell";
+import { waitForPrintAssets } from "./waitForPrintAssets";
+import { buildPublicDocumentUrl } from "@/lib/publicDocumentUrl";
 
 interface Props {
   type: string;
@@ -19,40 +21,124 @@ interface Props {
 
 // ─── Quote loader ────────────────────────────────────────────────────────────
 function QuoteLoader({ id, lang }: { id: string; lang: PrintLang }) {
-  const data = useQuery(api.quotes.getQuoteForPrint, { id: id as Id<"quotes"> });
+  const ensureToken = useMutation(api.quotes.ensureQuotePublicViewToken);
+  const ensureTokenRef = useRef(ensureToken);
+  ensureTokenRef.current = ensureToken;
+  const [publicViewToken, setPublicViewToken] = useState<string | null>(null);
+  const [tokenReady, setTokenReady] = useState(false);
+  const data = useQuery(
+    api.quotes.getQuoteForPrint,
+    tokenReady ? { id: id as Id<"quotes"> } : "skip",
+  );
   const L = getLabels(lang);
 
-  useEffect(() => {
-    if (data !== undefined) {
-      if (data) {
-        document.title = `${data.quote.number ?? L.quote} — ${lang === "ar" ? data.group?.name ?? "" : data.group?.name ?? ""}`;
-        window.print();
-      }
-    }
-  }, [data, lang, L.quote]);
+  const publicViewUrl = useMemo(() => {
+    if (!publicViewToken) return null;
+    return buildPublicDocumentUrl("quote", publicViewToken);
+  }, [publicViewToken]);
 
-  if (data === undefined) return <LoadingState lang={lang} />;
+  useEffect(() => {
+    let cancelled = false;
+    void ensureTokenRef.current({ id: id as Id<"quotes"> })
+      .then((result) => {
+        if (!cancelled) setPublicViewToken(result.token);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setTokenReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!tokenReady || data === undefined || !data) return;
+
+    let cancelled = false;
+    document.title = `${data.quote.number ?? L.quote} — ${data.group?.name ?? ""}`;
+
+    void (async () => {
+      await waitForPrintAssets();
+      if (!cancelled) window.print();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenReady, data, L.quote]);
+
+  if (!tokenReady || data === undefined) return <LoadingState lang={lang} />;
   if (!data) return <NotFoundState lang={lang} />;
-  return <QuotePrintView data={data} lang={lang} />;
+  return (
+    <QuotePrintView
+      data={data}
+      lang={lang}
+      publicViewUrl={publicViewUrl}
+      qrLabel={L.scanToView}
+    />
+  );
 }
 
 // ─── Invoice loader ──────────────────────────────────────────────────────────
 function InvoiceLoader({ id, lang }: { id: string; lang: PrintLang }) {
-  const data = useQuery(api.invoices.getInvoiceForPrint, { id: id as Id<"invoices"> });
+  const ensureToken = useMutation(api.invoices.ensureInvoicePublicViewToken);
+  const ensureTokenRef = useRef(ensureToken);
+  ensureTokenRef.current = ensureToken;
+  const [publicViewToken, setPublicViewToken] = useState<string | null>(null);
+  const [tokenReady, setTokenReady] = useState(false);
+  const data = useQuery(
+    api.invoices.getInvoiceForPrint,
+    tokenReady ? { id: id as Id<"invoices"> } : "skip",
+  );
   const L = getLabels(lang);
 
-  useEffect(() => {
-    if (data !== undefined) {
-      if (data) {
-        document.title = `${data.invoice.number ?? L.invoice} — ${data.group?.name ?? ""}`;
-        window.print();
-      }
-    }
-  }, [data, lang, L.invoice]);
+  const publicViewUrl = useMemo(() => {
+    if (!publicViewToken) return null;
+    return buildPublicDocumentUrl("invoice", publicViewToken);
+  }, [publicViewToken]);
 
-  if (data === undefined) return <LoadingState lang={lang} />;
+  useEffect(() => {
+    let cancelled = false;
+    void ensureTokenRef.current({ id: id as Id<"invoices"> })
+      .then((result) => {
+        if (!cancelled) setPublicViewToken(result.token);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setTokenReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!tokenReady || data === undefined || !data) return;
+
+    let cancelled = false;
+    document.title = `${data.invoice.number ?? L.invoice} — ${data.group?.name ?? ""}`;
+
+    void (async () => {
+      await waitForPrintAssets();
+      if (!cancelled) window.print();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tokenReady, data, L.invoice]);
+
+  if (!tokenReady || data === undefined) return <LoadingState lang={lang} />;
   if (!data) return <NotFoundState lang={lang} />;
-  return <InvoicePrintView data={data} lang={lang} />;
+  return (
+    <InvoicePrintView
+      data={data}
+      lang={lang}
+      publicViewUrl={publicViewUrl}
+      qrLabel={L.scanToView}
+    />
+  );
 }
 
 // ─── Voucher loader ──────────────────────────────────────────────────────────
@@ -61,13 +147,20 @@ function VoucherLoader({ id, lang }: { id: string; lang: PrintLang }) {
   const L = getLabels(lang);
 
   useEffect(() => {
-    if (data !== undefined) {
-      if (data) {
-        document.title = `${data.voucher.number ?? L.receiptVoucher} — ${data.group?.name ?? ""}`;
-        window.print();
-      }
-    }
-  }, [data, lang, L.receiptVoucher]);
+    if (data === undefined || !data) return;
+
+    let cancelled = false;
+    document.title = `${data.voucher.number ?? L.receiptVoucher} — ${data.group?.name ?? ""}`;
+
+    void (async () => {
+      await waitForPrintAssets();
+      if (!cancelled) window.print();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, L.receiptVoucher]);
 
   if (data === undefined) return <LoadingState lang={lang} />;
   if (!data) return <NotFoundState lang={lang} />;

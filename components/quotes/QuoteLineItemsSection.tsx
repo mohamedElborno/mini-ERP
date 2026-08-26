@@ -16,6 +16,7 @@ type Props = {
   onLineChange: (key: string, patch: Partial<LineItemForm>) => void;
   onRemoveLine: (key: string) => void;
   onToggleLineTax: (key: string, taxId: Id<"taxes">) => void;
+  allowPerLineTaxes?: boolean;
   canOversellQuotes: boolean;
 };
 
@@ -29,6 +30,7 @@ export function QuoteLineItemsSection({
   onLineChange,
   onRemoveLine,
   onToggleLineTax,
+  allowPerLineTaxes = false,
   canOversellQuotes,
 }: Props) {
   const t = useTranslations("quotesPage");
@@ -68,6 +70,7 @@ export function QuoteLineItemsSection({
               onChange={onLineChange}
               onRemove={onRemoveLine}
               onToggleLineTax={onToggleLineTax}
+              allowPerLineTaxes={allowPerLineTaxes}
               locale={locale}
               canOversellQuotes={canOversellQuotes}
             />

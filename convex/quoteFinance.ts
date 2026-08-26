@@ -5,7 +5,14 @@ import { calculateFinancialDocument } from "./financials";
  * Re-export: محرك المستندات المالي (ضرائب، إجماليات) — يستخدم Decimal داخلياً.
  * استورده من هنا ليكون الاستيراد لحسابات عرض السعر/الفواتير من مكان واحد.
  */
-export { calculateFinancialDocument };
+export {
+  calculateFinancialDocument,
+  taxKey,
+  type LineInput,
+  type ProcessedLine,
+  type TaxInfo,
+  type TaxSummary,
+} from "./financials";
 
 // ─── نوع مبسط للعملة (للخادم والواجهة) ───────────────────────────────────────
 

@@ -1,9 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import type { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import type { PrintLang } from "./printLabels";
 import { getLabels, fmtDate, fmtNum } from "./printLabels";
+import { PrintDocumentHeader } from "./PrintDocumentHeader";
+import { PrintNationalAddressBlock } from "./PrintNationalAddressBlock";
 
 type InvoicePrintData = NonNullable<FunctionReturnType<typeof api.invoices.getInvoiceForPrint>>;
 
@@ -15,7 +18,19 @@ function statusColor(status: string) {
   return "#6b7280";
 }
 
-export function InvoicePrintView({ data, lang }: { data: InvoicePrintData; lang: PrintLang }) {
+export function InvoicePrintView({
+  data,
+  lang,
+  showPublicQr = true,
+  publicViewUrl: publicViewUrlProp,
+  qrLabel: qrLabelProp,
+}: {
+  data: InvoicePrintData;
+  lang: PrintLang;
+  showPublicQr?: boolean;
+  publicViewUrl?: string | null;
+  qrLabel?: string;
+}) {
   const L = getLabels(lang);
   const { invoice, company, contact, group, currency, lineItems, services, quoteRef } = data;
   const sym = currency?.symbol ?? "";
@@ -24,27 +39,59 @@ export function InvoicePrintView({ data, lang }: { data: InvoicePrintData; lang:
   const statusLabel = L[invoice.status as keyof typeof L] ?? invoice.status ?? "—";
   const isPaid = invoice.status === "paid";
 
+  const publicViewUrl = useMemo(() => {
+    if (publicViewUrlProp) return publicViewUrlProp;
+    return null;
+  }, [publicViewUrlProp]);
+
+  const qrLabel = qrLabelProp ?? L.scanToView;
+
   return (
     <div className="print-page">
       {/* ── Header ── */}
-      <div className="doc-header">
-        <div>
-          <div className="doc-company-name">{group?.name ?? "—"}</div>
-          {quoteRef?.number && (
-            <div className="doc-company-sub">{L.quoteRef}: {quoteRef.number}{quoteRef.revision ? ` R${quoteRef.revision}` : ""}</div>
-          )}
-        </div>
-        <div className="doc-title-block">
+      <PrintDocumentHeader
+        group={group}
+        lang={lang}
+        publicViewUrl={showPublicQr ? publicViewUrl : null}
+        qrLabel={qrLabel}
+        subtitle={
+          quoteRef?.number ? (
+            <div className="doc-company-sub">
+              {L.quoteRef}: {quoteRef.number}
+              {quoteRef.revision ? ` R${quoteRef.revision}` : ""}
+            </div>
+          ) : undefined
+        }
+      >
+        <div className="doc-title-row">
           <div className="doc-title">{L.invoice}</div>
-          <div className="doc-number">{invoice.number ?? "—"}</div>
-          <div className="doc-meta">{L.date}: {fmtDate(invoice.issueDate, lang)}</div>
-          {invoice.dueDate && <div className="doc-meta">{L.dueDate}: {fmtDate(invoice.dueDate, lang)}</div>}
-          {invoice.deliveryDate && <div className="doc-meta">{L.deliveryDate}: {fmtDate(invoice.deliveryDate, lang)}</div>}
-          <span className="status-badge" style={{ color: statusColor(invoice.status ?? ""), borderColor: statusColor(invoice.status ?? "") }}>
+          <span
+            className="status-badge"
+            style={{
+              color: statusColor(invoice.status ?? ""),
+              borderColor: statusColor(invoice.status ?? ""),
+            }}
+          >
             {statusLabel}
           </span>
         </div>
-      </div>
+        <div className="doc-number">{invoice.number ?? "—"}</div>
+        <div className="doc-meta-list">
+          <div className="doc-meta">
+            {L.date}: {fmtDate(invoice.issueDate, lang)}
+          </div>
+          {invoice.dueDate && (
+            <div className="doc-meta">
+              {L.dueDate}: {fmtDate(invoice.dueDate, lang)}
+            </div>
+          )}
+          {invoice.deliveryDate && (
+            <div className="doc-meta">
+              {L.deliveryDate}: {fmtDate(invoice.deliveryDate, lang)}
+            </div>
+          )}
+        </div>
+      </PrintDocumentHeader>
 
       {/* ── Client info ── */}
       <div className="client-section">
@@ -53,9 +100,9 @@ export function InvoicePrintView({ data, lang }: { data: InvoicePrintData; lang:
           {company && (
             <>
               <div className="client-name">{company.name}</div>
-              {company.address && <div className="client-sub">{company.address}</div>}
-              {(company.city || company.country) && (
-                <div className="client-sub">{[company.city, company.country].filter(Boolean).join(", ")}</div>
+              <PrintNationalAddressBlock data={company} lang={lang} />
+              {company.taxNumber && (
+                <div className="client-sub">{L.taxNumber}: {company.taxNumber}</div>
               )}
             </>
           )}
@@ -63,7 +110,6 @@ export function InvoicePrintView({ data, lang }: { data: InvoicePrintData; lang:
             <>
               <div className="client-sub mt-2">{L.contact}: {contact.name}</div>
               {contact.phone && <div className="client-sub">{L.phone}: {contact.phone}</div>}
-              {contact.email && <div className="client-sub">{L.email}: {contact.email}</div>}
             </>
           )}
         </div>
@@ -109,7 +155,6 @@ export function InvoicePrintView({ data, lang }: { data: InvoicePrintData; lang:
             <th className="num-col" style={{ width: "60px" }}>{L.qty}</th>
             <th className="num-col" style={{ width: "90px" }}>{L.unitPrice}</th>
             {allItems.some(i => i.discount > 0) && <th className="num-col" style={{ width: "72px" }}>{L.discount}</th>}
-            <th className="num-col" style={{ width: "90px" }}>{L.tax}</th>
             <th className="num-col" style={{ width: "100px" }}>{L.lineTotal}</th>
           </tr>
         </thead>
@@ -119,19 +164,13 @@ export function InvoicePrintView({ data, lang }: { data: InvoicePrintData; lang:
               <td style={{ color: "#999", fontSize: "11px" }}>{item.index}</td>
               <td>
                 <div className="item-name">{item.name}</div>
-                {item.taxes.length > 0 && (
-                  <div className="item-taxes">
-                    {item.taxes.map(t => `${t.name ?? ""} ${(t.rate * 100).toFixed(0)}%`).join(" · ")}
-                  </div>
-                )}
               </td>
               <td className="num-col">{item.quantity}</td>
               <td className="num-col">{fmtNum(item.price)}</td>
               {allItems.some(i => i.discount > 0) && (
-                <td className="num-col">{item.discount > 0 ? `${item.discount}%` : "—"}</td>
+                <td className="num-col">{item.discount > 0 ? fmtNum(item.discount, sym) : "—"}</td>
               )}
-              <td className="num-col">{item.taxAmount > 0 ? fmtNum(item.taxAmount) : "—"}</td>
-              <td className="num-col" style={{ fontWeight: 600 }}>{fmtNum(item.total, sym)}</td>
+              <td className="num-col" style={{ fontWeight: 600 }}>{fmtNum(item.subtotal, sym)}</td>
             </tr>
           ))}
         </tbody>

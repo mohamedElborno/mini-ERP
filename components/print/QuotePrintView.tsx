@@ -1,9 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import type { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import type { PrintLang } from "./printLabels";
 import { getLabels, fmtDate, fmtNum } from "./printLabels";
+import { PrintDocumentHeader } from "./PrintDocumentHeader";
+import { PrintNationalAddressBlock } from "./PrintNationalAddressBlock";
 
 type QuotePrintData = NonNullable<FunctionReturnType<typeof api.quotes.getQuoteForPrint>>;
 
@@ -14,7 +17,19 @@ function statusColor(status: string) {
   return "#6b7280";
 }
 
-export function QuotePrintView({ data, lang }: { data: QuotePrintData; lang: PrintLang }) {
+export function QuotePrintView({
+  data,
+  lang,
+  showPublicQr = true,
+  publicViewUrl: publicViewUrlProp,
+  qrLabel: qrLabelProp,
+}: {
+  data: QuotePrintData;
+  lang: PrintLang;
+  showPublicQr?: boolean;
+  publicViewUrl?: string | null;
+  qrLabel?: string;
+}) {
   const L = getLabels(lang);
   const { quote, company, contact, group, currency, lineItems, services } = data;
   const sym = currency?.symbol ?? "";
@@ -22,25 +37,59 @@ export function QuotePrintView({ data, lang }: { data: QuotePrintData; lang: Pri
 
   const statusLabel = L[quote.status as keyof typeof L] ?? quote.status ?? "—";
 
+  const publicViewUrl = useMemo(() => {
+    if (publicViewUrlProp) return publicViewUrlProp;
+    return null;
+  }, [publicViewUrlProp]);
+
+  const qrLabel = qrLabelProp ?? L.scanToView;
+
   return (
     <div className="print-page">
       {/* ── Header ── */}
-      <div className="doc-header">
-        <div>
-          <div className="doc-company-name">{group?.name ?? "—"}</div>
-        </div>
-        <div className="doc-title-block">
+      <PrintDocumentHeader
+        group={group}
+        lang={lang}
+        publicViewUrl={showPublicQr ? publicViewUrl : null}
+        qrLabel={qrLabel}
+      >
+        <div className="doc-title-row">
           <div className="doc-title">{L.quote}</div>
-          <div className="doc-number">{quote.number ?? "—"}{quote.revision ? ` (R${quote.revision})` : ""}</div>
-          <div className="doc-meta">{L.date}: {fmtDate(quote.issueDate, lang)}</div>
-          {quote.dueDate && <div className="doc-meta">{L.dueDate}: {fmtDate(quote.dueDate, lang)}</div>}
-          {quote.expirationDate && <div className="doc-meta">{L.expiryDate}: {fmtDate(quote.expirationDate, lang)}</div>}
-          {quote.deliveryDate && <div className="doc-meta">{L.deliveryDate}: {fmtDate(quote.deliveryDate, lang)}</div>}
-          <span className="status-badge" style={{ color: statusColor(quote.status ?? ""), borderColor: statusColor(quote.status ?? "") }}>
+          <span
+            className="status-badge"
+            style={{
+              color: statusColor(quote.status ?? ""),
+              borderColor: statusColor(quote.status ?? ""),
+            }}
+          >
             {statusLabel}
           </span>
         </div>
-      </div>
+        <div className="doc-number">
+          {quote.number ?? "—"}
+          {quote.revision ? ` (R${quote.revision})` : ""}
+        </div>
+        <div className="doc-meta-list">
+          <div className="doc-meta">
+            {L.date}: {fmtDate(quote.issueDate, lang)}
+          </div>
+          {quote.dueDate && (
+            <div className="doc-meta">
+              {L.dueDate}: {fmtDate(quote.dueDate, lang)}
+            </div>
+          )}
+          {quote.expirationDate && (
+            <div className="doc-meta">
+              {L.expiryDate}: {fmtDate(quote.expirationDate, lang)}
+            </div>
+          )}
+          {quote.deliveryDate && (
+            <div className="doc-meta">
+              {L.deliveryDate}: {fmtDate(quote.deliveryDate, lang)}
+            </div>
+          )}
+        </div>
+      </PrintDocumentHeader>
 
       {/* ── Client info ── */}
       <div className="client-section">
@@ -49,9 +98,9 @@ export function QuotePrintView({ data, lang }: { data: QuotePrintData; lang: Pri
           {company && (
             <>
               <div className="client-name">{company.name}</div>
-              {company.address && <div className="client-sub">{company.address}</div>}
-              {(company.city || company.country) && (
-                <div className="client-sub">{[company.city, company.country].filter(Boolean).join(", ")}</div>
+              <PrintNationalAddressBlock data={company} lang={lang} />
+              {company.taxNumber && (
+                <div className="client-sub">{L.taxNumber}: {company.taxNumber}</div>
               )}
             </>
           )}
@@ -59,7 +108,6 @@ export function QuotePrintView({ data, lang }: { data: QuotePrintData; lang: Pri
             <>
               <div className="client-sub mt-2">{L.contact}: {contact.name}</div>
               {contact.phone && <div className="client-sub">{L.phone}: {contact.phone}</div>}
-              {contact.email && <div className="client-sub">{L.email}: {contact.email}</div>}
             </>
           )}
         </div>
@@ -110,7 +158,6 @@ export function QuotePrintView({ data, lang }: { data: QuotePrintData; lang: Pri
             <th className="num-col" style={{ width: "60px" }}>{L.qty}</th>
             <th className="num-col" style={{ width: "90px" }}>{L.unitPrice}</th>
             {allItems.some(i => i.discount > 0) && <th className="num-col" style={{ width: "72px" }}>{L.discount}</th>}
-            <th className="num-col" style={{ width: "90px" }}>{L.tax}</th>
             <th className="num-col" style={{ width: "100px" }}>{L.lineTotal}</th>
           </tr>
         </thead>
@@ -120,19 +167,13 @@ export function QuotePrintView({ data, lang }: { data: QuotePrintData; lang: Pri
               <td style={{ color: "#999", fontSize: "11px" }}>{item.index}</td>
               <td>
                 <div className="item-name">{item.name}</div>
-                {item.taxes.length > 0 && (
-                  <div className="item-taxes">
-                    {item.taxes.map(t => `${t.name ?? ""} ${(t.rate * 100).toFixed(0)}%`).join(" · ")}
-                  </div>
-                )}
               </td>
               <td className="num-col">{item.quantity}</td>
               <td className="num-col">{fmtNum(item.price)}</td>
               {allItems.some(i => i.discount > 0) && (
-                <td className="num-col">{item.discount > 0 ? `${item.discount}%` : "—"}</td>
+                <td className="num-col">{item.discount > 0 ? fmtNum(item.discount, sym) : "—"}</td>
               )}
-              <td className="num-col">{item.taxAmount > 0 ? fmtNum(item.taxAmount) : "—"}</td>
-              <td className="num-col" style={{ fontWeight: 600 }}>{fmtNum(item.total, sym)}</td>
+              <td className="num-col" style={{ fontWeight: 600 }}>{fmtNum(item.subtotal, sym)}</td>
             </tr>
           ))}
         </tbody>

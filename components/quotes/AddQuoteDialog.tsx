@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { api } from "@/convex/_generated/api";
@@ -64,6 +64,8 @@ export function AddQuoteDialog({
   const [lines, setLines] = useState<LineItemForm[]>([]);
   const [paymentMethod, setPaymentMethod] =
     useState<QuotePaymentMethod>("immediate");
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [draftInitialized, setDraftInitialized] = useState(false);
 
   const deals = useQuery(
     api.deals.getDealsWithDetails,
@@ -99,6 +101,28 @@ export function AddQuoteDialog({
     return perms.includes("admin:all") || perms.includes("quotes:oversell");
   }, [currentUser]);
 
+  const allowPerLineTaxes = settings?.allowPerLineTaxes ?? false;
+
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpenRef.current && !draftInitialized) {
+      setTaxTemplateIds((prev) =>
+        prev.length > 0
+          ? prev
+          : ((settings?.defaultTaxIds ?? []) as Id<"taxes">[]),
+      );
+      setDraftInitialized(true);
+    }
+    wasOpenRef.current = open;
+  }, [open, settings?.defaultTaxIds, draftInitialized]);
+
+  useEffect(() => {
+    if (allowPerLineTaxes) return;
+    setLines((prev) =>
+      prev.map((line) => ({ ...line, taxIds: [...taxTemplateIds] })),
+    );
+  }, [allowPerLineTaxes, taxTemplateIds]);
+
   const defaultCurrencyId = useMemo(() => {
     if (!currencies?.length) return undefined;
     const fromSettings = settings?.defaultCurrency;
@@ -108,7 +132,7 @@ export function AddQuoteDialog({
 
   useEffect(() => {
     if (!open || !defaultCurrencyId) return;
-    setCurrencyId(defaultCurrencyId);
+    setCurrencyId((prev) => prev || defaultCurrencyId);
   }, [open, defaultCurrencyId]);
 
   const getLinePriceForProduct = useCallback(
@@ -164,7 +188,8 @@ export function AddQuoteDialog({
     const raw = lines
       .filter((l) => l.product)
       .map((l) => {
-        const taxes = buildLineTaxesPayload(l.taxIds, taxesList);
+        const taxIds = allowPerLineTaxes ? l.taxIds : taxTemplateIds;
+        const taxes = buildLineTaxesPayload(taxIds, taxesList);
         return {
           product: l.product,
           quantity: l.qty,
@@ -189,7 +214,7 @@ export function AddQuoteDialog({
       shipping,
       shippingTaxPayload,
     );
-  }, [lines, taxesList, generalDiscount, shipping, shippingTaxIds]);
+  }, [lines, taxesList, generalDiscount, shipping, shippingTaxIds, allowPerLineTaxes, taxTemplateIds]);
 
   const handleLineChange = (key: string, patch: Partial<LineItemForm>) => {
     setLines((prev) =>
@@ -222,7 +247,42 @@ export function AddQuoteDialog({
     );
   };
 
-  const handleClose = () => {
+  const hasDraftProgress = useMemo(() => {
+    if (description.trim() || number.trim()) return true;
+    if (generalDiscount > 0 || shipping > 0 || shippingTaxIds.length > 0) {
+      return true;
+    }
+    if (lines.length > 0) return true;
+    if (
+      lines.some(
+        (line) =>
+          line.product !== "" ||
+          line.discount > 0 ||
+          line.qty !== 1 ||
+          line.price !== 0,
+      )
+    ) {
+      return true;
+    }
+    if (dealId && dealId !== (defaultDealId ?? "")) return true;
+    if (dueDate || expirationDate) return true;
+    if (paymentMethod !== "immediate") return true;
+    return false;
+  }, [
+    description,
+    number,
+    generalDiscount,
+    shipping,
+    shippingTaxIds,
+    lines,
+    dealId,
+    defaultDealId,
+    dueDate,
+    expirationDate,
+    paymentMethod,
+  ]);
+
+  const resetForm = () => {
     setDealId(defaultDealId ?? "");
     setNumber("");
     setDescription("");
@@ -236,6 +296,20 @@ export function AddQuoteDialog({
     setShipping(0);
     setLines([]);
     setPaymentMethod("immediate");
+    setShowCloseConfirm(false);
+    setDraftInitialized(false);
+  };
+
+  const requestClose = () => {
+    if (hasDraftProgress) {
+      setShowCloseConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  const confirmClose = () => {
+    setShowCloseConfirm(false);
     onClose();
   };
 
@@ -254,7 +328,8 @@ export function AddQuoteDialog({
       const validLines = lines
         .filter((l) => l.product !== "")
         .map((l) => {
-          const taxes = buildLineTaxesPayload(l.taxIds, taxesList);
+          const taxIds = allowPerLineTaxes ? l.taxIds : taxTemplateIds;
+          const taxes = buildLineTaxesPayload(taxIds, taxesList);
           return {
             product: l.product as Id<"products">,
             quantity: l.qty,
@@ -285,7 +360,8 @@ export function AddQuoteDialog({
       });
       toast.success(t("quoteCreated"));
       onCreated?.();
-      handleClose();
+      resetForm();
+      onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("genericError"));
     } finally {
@@ -299,7 +375,7 @@ export function AddQuoteDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-20 md:pb-4">
       <div
         className="absolute inset-0 min-h-screen min-w-screen bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
+        onClick={requestClose}
       />
 
       <div className="bg-card border-border relative z-10 flex w-full max-w-2xl flex-col rounded-2xl border shadow-2xl">
@@ -317,7 +393,7 @@ export function AddQuoteDialog({
           </div>
           <button
             type="button"
-            onClick={handleClose}
+            onClick={requestClose}
             className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg p-1.5 transition-colors"
           >
             <IconX className="h-5 w-5" />
@@ -354,8 +430,11 @@ export function AddQuoteDialog({
             <QuoteTaxTemplateSection
               taxesList={taxesList}
               taxTemplateIds={taxTemplateIds}
+              allowPerLineTaxes={allowPerLineTaxes}
               onToggleTax={toggleTaxTemplate}
-              onApplyToAllLines={applyTaxTemplateToAllLines}
+              onApplyToAllLines={
+                allowPerLineTaxes ? applyTaxTemplateToAllLines : undefined
+              }
             />
 
             <div className="border-border border-t" />
@@ -374,6 +453,7 @@ export function AddQuoteDialog({
                 setLines((p) => p.filter((l) => l.key !== key))
               }
               onToggleLineTax={toggleLineTax}
+              allowPerLineTaxes={allowPerLineTaxes}
               canOversellQuotes={canOversellQuotes}
             />
 
@@ -395,7 +475,7 @@ export function AddQuoteDialog({
             <button
               type="button"
               className="border-border hover:bg-muted rounded-lg border px-4 py-2 text-sm transition-colors"
-              onClick={handleClose}
+              onClick={requestClose}
             >
               {t("createCancel")}
             </button>
@@ -408,6 +488,43 @@ export function AddQuoteDialog({
             </button>
           </div>
         </form>
+
+        {showCloseConfirm ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-black/40 p-6">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="quote-close-confirm-title"
+              className="bg-card border-border w-full max-w-sm rounded-xl border p-5 shadow-xl"
+            >
+              <h3
+                id="quote-close-confirm-title"
+                className="text-base font-semibold"
+              >
+                {t("createCloseConfirmTitle")}
+              </h3>
+              <p className="text-muted-foreground mt-2 text-sm">
+                {t("createCloseConfirmMessage")}
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="border-border hover:bg-muted rounded-lg border px-4 py-2 text-sm transition-colors"
+                  onClick={() => setShowCloseConfirm(false)}
+                >
+                  {t("createCloseConfirmStay")}
+                </button>
+                <button
+                  type="button"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                  onClick={confirmClose}
+                >
+                  {t("createCloseConfirmClose")}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

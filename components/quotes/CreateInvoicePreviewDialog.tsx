@@ -53,8 +53,8 @@ export function CreateInvoicePreviewDialog({
         taxes: s.taxes,
       })) ?? [];
     return calculateFinancialDocument(
-      lineItems as never,
-      svc as never,
+      lineItems,
+      svc,
       quote.discount ?? 0,
       quote.shippingAmount ?? 0,
       quote.shippingTaxes ?? [],

@@ -4,6 +4,7 @@ import type { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
 import type { PrintLang } from "./printLabels";
 import { getLabels, fmtDate, fmtNum } from "./printLabels";
+import { PrintDocumentHeader } from "./PrintDocumentHeader";
 
 type VoucherPrintData = NonNullable<FunctionReturnType<typeof api.receiptVouchers.getVoucherForPrint>>;
 
@@ -17,16 +18,17 @@ export function VoucherPrintView({ data, lang }: { data: VoucherPrintData; lang:
   return (
     <div className="print-page">
       {/* ── Header ── */}
-      <div className="doc-header">
-        <div>
-          <div className="doc-company-name">{group?.name ?? "—"}</div>
-        </div>
-        <div className="doc-title-block">
+      <PrintDocumentHeader group={group} lang={lang}>
+        <div className="doc-title-row">
           <div className="doc-title">{L.receiptVoucher}</div>
-          <div className="doc-number">{voucher.number ?? "—"}</div>
-          <div className="doc-meta">{L.date}: {fmtDate(voucher.issueDate, lang)}</div>
         </div>
-      </div>
+        <div className="doc-number">{voucher.number ?? "—"}</div>
+        <div className="doc-meta-list">
+          <div className="doc-meta">
+            {L.date}: {fmtDate(voucher.issueDate, lang)}
+          </div>
+        </div>
+      </PrintDocumentHeader>
 
       {/* ── Received from ── */}
       <div className="client-section">

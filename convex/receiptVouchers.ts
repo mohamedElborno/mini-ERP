@@ -14,6 +14,7 @@ import {
   filterByOrgGroup,
   getAccessibleOrgGroupIds,
   getDefaultCurrencyIdForGroup,
+  getGroupBrandingForPrint,
   getSettingsByGroup,
   getUserAssignedGroupIds,
   orgGroupFilterValidator,
@@ -1393,7 +1394,7 @@ export const getVoucherForPrint = query({
     const company = await ctx.db.get(voucher.company);
     const contact = await ctx.db.get(voucher.contact);
     const currency = await ctx.db.get(voucher.currency);
-    const group = voucher.group ? await ctx.db.get(voucher.group) : null;
+    const group = await getGroupBrandingForPrint(ctx, voucher.group ?? undefined);
 
     // Linked invoices with their allocations
     const allocations = voucher.allocations ?? [];
@@ -1434,7 +1435,7 @@ export const getVoucherForPrint = query({
             phone: contact.phoneNumber,
           }
         : null,
-      group: group ? { name: group.name } : null,
+      group,
       currencySymbol: currency?.symbol ?? null,
       currencyName: currency?.name ?? null,
       invoiceDetails: invoiceDetails.filter(Boolean),

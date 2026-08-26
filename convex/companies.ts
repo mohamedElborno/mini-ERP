@@ -12,6 +12,7 @@ import {
   userCanAccessOrgGroup,
 } from "./orgGroupHelpers";
 import { logManualCreditLimitUpdate } from "./companyCredit";
+import { normalizeNationalAddressFields } from "./lib/saudiNationalAddress";
 import {
   companyMatchesSearch,
   getListAuth,
@@ -85,6 +86,11 @@ export const createCompany = mutation({
     city: v.optional(v.string()),
     zipCode: v.optional(v.string()),
     address: v.optional(v.string()),
+    taxNumber: v.optional(v.string()),
+    nationalAddress: v.optional(v.string()),
+    buildingNumber: v.optional(v.string()),
+    district: v.optional(v.string()),
+    secondaryNumber: v.optional(v.string()),
     website: v.optional(v.string()),
     email: v.optional(v.string()),
     phoneNumber: v.optional(v.string()),
@@ -95,7 +101,8 @@ export const createCompany = mutation({
       ctx,
       "companies:create",
     );
-    const { orgGroupId: requestedOrgGroupId, ...companyFields } = args;
+    const { orgGroupId: requestedOrgGroupId, ...rawFields } = args;
+    const companyFields = normalizeNationalAddressFields(rawFields);
     const orgGroupId = await resolveOrgGroupForCreate(
       ctx,
       user,
@@ -136,6 +143,11 @@ export const updateCompany = mutation({
     city: v.optional(v.string()),
     zipCode: v.optional(v.string()),
     address: v.optional(v.string()),
+    taxNumber: v.optional(v.string()),
+    nationalAddress: v.optional(v.string()),
+    buildingNumber: v.optional(v.string()),
+    district: v.optional(v.string()),
+    secondaryNumber: v.optional(v.string()),
     website: v.optional(v.string()),
     email: v.optional(v.string()),
     phoneNumber: v.optional(v.string()),
@@ -151,7 +163,8 @@ export const updateCompany = mutation({
     );
     const company = await canAccessCompany(ctx, args.id, user, isSuperAdmin);
 
-    const { id, creditLimit, creditPeriodDays, ...updateFields } = args;
+    const { id, creditLimit, creditPeriodDays, ...rawFields } = args;
+    const updateFields = normalizeNationalAddressFields(rawFields);
 
     if (creditLimit !== undefined && creditLimit < 0) {
       throw new Error("Credit limit cannot be negative.");

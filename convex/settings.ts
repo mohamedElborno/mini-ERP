@@ -113,11 +113,21 @@ export const getSettings = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
+    let doc;
     if (!args.orgGroupId || args.orgGroupId === "all") {
-      return (await ctx.db.query("settings").first()) ?? null;
+      doc = (await ctx.db.query("settings").first()) ?? null;
+    } else {
+      doc = (await getSettingsByGroup(ctx, args.orgGroupId)) ?? null;
     }
 
-    return (await getSettingsByGroup(ctx, args.orgGroupId)) ?? null;
+    if (!doc) return null;
+
+    let companyLogoUrl: string | null = null;
+    if (doc.companyLogoStorageId) {
+      companyLogoUrl = await ctx.storage.getUrl(doc.companyLogoStorageId);
+    }
+
+    return { ...doc, companyLogoUrl };
   },
 });
 
@@ -149,6 +159,9 @@ export const updateSettings = mutation({
     receiptVoucherNumberPrefix: v.optional(v.string()),
     receiptVoucherNumberIncludeYear: v.optional(v.boolean()),
     receiptVoucherNumberPadding: v.optional(v.number()),
+    allowPerLineTaxes: v.optional(v.boolean()),
+    defaultTaxIds: v.optional(v.array(v.id("taxes"))),
+    companyLogoStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
@@ -183,6 +196,9 @@ export const updateSettings = mutation({
       "receiptVoucherNumberPrefix",
       "receiptVoucherNumberIncludeYear",
       "receiptVoucherNumberPadding",
+      "allowPerLineTaxes",
+      "defaultTaxIds",
+      "companyLogoStorageId",
     ] as const;
 
     for (const key of fields) {
@@ -192,6 +208,14 @@ export const updateSettings = mutation({
     }
 
     const existing = await getSettingsByGroup(ctx, groupId);
+    if (
+      args.companyLogoStorageId !== undefined &&
+      existing?.companyLogoStorageId &&
+      existing.companyLogoStorageId !== args.companyLogoStorageId
+    ) {
+      await ctx.storage.delete(existing.companyLogoStorageId);
+    }
+
     if (existing) {
       await ctx.db.patch(existing._id, patch);
       return existing._id;
@@ -202,5 +226,43 @@ export const updateSettings = mutation({
     if (!created) throw new Error("Failed to save settings.");
     await ctx.db.patch(created._id, patch);
     return created._id;
+  },
+});
+
+export const generateCompanyLogoUploadUrl = mutation({
+  args: { orgGroupId: v.optional(v.id("groups")) },
+  handler: async (ctx, args) => {
+    const { user, isSuperAdmin } = await requirePermission(
+      ctx,
+      "settings:manage",
+    );
+    await resolveOrgGroupForCreate(ctx, user, args.orgGroupId, isSuperAdmin);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const removeCompanyLogo = mutation({
+  args: { orgGroupId: v.optional(v.id("groups")) },
+  handler: async (ctx, args) => {
+    const { user, isSuperAdmin } = await requirePermission(
+      ctx,
+      "settings:manage",
+    );
+    const groupId = await resolveOrgGroupForCreate(
+      ctx,
+      user,
+      args.orgGroupId,
+      isSuperAdmin,
+    );
+
+    const existing = await getSettingsByGroup(ctx, groupId);
+    if (!existing?.companyLogoStorageId) return;
+
+    await ctx.storage.delete(existing.companyLogoStorageId);
+    await ctx.db.patch(existing._id, {
+      companyLogoStorageId: undefined,
+      updatedBy: user._id,
+      updatedAt: Date.now(),
+    });
   },
 });

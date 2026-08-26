@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { IconTrash } from "@tabler/icons-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { Switch } from "@/components/ui/switch";
 import { Btn, FieldRow, Input, SectionCard } from "./settingsShared";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 
@@ -15,13 +16,29 @@ export function TaxesTab() {
   const { orgGroupFilter, orgGroupIdForCreate, effectiveOrgGroupId } =
     useOrgGroup();
   const taxes = useQuery(api.taxes.getTaxes, { orgGroupId: orgGroupFilter }) ?? [];
+  const settings = useQuery(api.settings.getSettings, {
+    orgGroupId: effectiveOrgGroupId ?? "all",
+  });
   const createTax = useMutation(api.taxes.createTax);
   const deleteTax = useMutation(api.taxes.deleteTax);
+  const updateSettings = useMutation(api.settings.updateSettings);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [rate, setRate] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [allowPerLineTaxes, setAllowPerLineTaxes] = useState(false);
+  const [defaultTaxIds, setDefaultTaxIds] = useState<Id<"taxes">[]>([]);
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyDirty, setPolicyDirty] = useState(false);
+
+  useEffect(() => {
+    if (!settings) return;
+    setAllowPerLineTaxes(settings.allowPerLineTaxes ?? false);
+    setDefaultTaxIds((settings.defaultTaxIds ?? []) as Id<"taxes">[]);
+    setPolicyDirty(false);
+  }, [settings?._id, settings?.updatedAt]);
 
   const handleAdd = async () => {
     if (!name.trim() || !rate) {
@@ -50,14 +67,102 @@ export function TaxesTab() {
   const handleDelete = async (id: Id<"taxes">) => {
     try {
       await deleteTax({ id });
+      setDefaultTaxIds((prev) => prev.filter((x) => x !== id));
       toast.success(t("taxDeleted"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("genericError"));
     }
   };
 
+  const toggleDefaultTax = (id: Id<"taxes">) => {
+    setPolicyDirty(true);
+    setDefaultTaxIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const handleSavePolicy = async () => {
+    setPolicySaving(true);
+    try {
+      await updateSettings({
+        orgGroupId: orgGroupIdForCreate ?? effectiveOrgGroupId,
+        allowPerLineTaxes,
+        defaultTaxIds,
+      });
+      toast.success(t("taxPolicySaved"));
+      setPolicyDirty(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("genericError"));
+    } finally {
+      setPolicySaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <SectionCard title={t("taxPolicyTitle")}>
+        <p className="text-muted-foreground mb-4 text-sm">{t("taxPolicyHint")}</p>
+
+        <div className="border-border mb-4 flex items-center justify-between gap-4 rounded-xl border p-4">
+          <div>
+            <p className="text-sm font-medium">{t("allowPerLineTaxes")}</p>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              {t("allowPerLineTaxesHint")}
+            </p>
+          </div>
+          <Switch
+            checked={allowPerLineTaxes}
+            onCheckedChange={(checked) => {
+              setAllowPerLineTaxes(checked);
+              setPolicyDirty(true);
+            }}
+          />
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">{t("defaultQuoteTaxes")}</p>
+          <p className="text-muted-foreground mb-3 text-xs">
+            {t("defaultQuoteTaxesHint")}
+          </p>
+          {taxes.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("taxesEmpty")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {taxes.map((tax) => (
+                <label
+                  key={tax._id}
+                  className="border-border bg-background has-checked:border-primary/50 has-checked:bg-primary/5 flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded border"
+                    checked={defaultTaxIds.includes(tax._id)}
+                    onChange={() => toggleDefaultTax(tax._id)}
+                  />
+                  <span>
+                    {tax.name}
+                    {tax.rate != null && (
+                      <span className="text-muted-foreground ms-1">
+                        ({(tax.rate * 100).toFixed(2)}%)
+                      </span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <Btn
+            onClick={handleSavePolicy}
+            disabled={policySaving || !policyDirty}
+          >
+            {policySaving ? t("saving") : t("saveTaxPolicy")}
+          </Btn>
+        </div>
+      </SectionCard>
+
       <SectionCard title={t("taxesListTitle")}>
         {taxes.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("taxesEmpty")}</p>

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -23,6 +23,13 @@ import {
   releaseReservationsForQuoteProductLines,
   toProductLineRefs,
 } from "./inventoryReservations";
+import { buildQuotePrintData } from "./documentViews";
+import {
+  ensureStaffPublicViewToken,
+  hasPublicViewLink,
+  revokePublicViewToken,
+  rotatePublicViewToken,
+} from "./lib/publicViewTokenStorage";
 import {
   canReadQuoteRow,
   getListAuth,
@@ -134,6 +141,9 @@ const quoteShippingTaxInput = v.array(
   }),
 );
 
+type QuoteProductLineInput = Infer<typeof quoteProductLineInput>;
+type QuoteServiceLineInput = Infer<typeof quoteServiceLineInput>;
+
 const quotePaymentMethodValidator = v.union(
   v.literal("immediate"),
   v.literal("on_credit"),
@@ -215,7 +225,7 @@ export const createQuote = mutation({
       );
     }
 
-    const normalizedServices: typeof args.services = [];
+    const normalizedServices: QuoteServiceLineInput[] = [];
     for (const si of args.services ?? []) {
       const s = await ctx.db.get(si.service);
       if (!s) throw new Error("Service not found");
@@ -393,7 +403,7 @@ export const updateQuote = mutation({
               discount: s.discount,
             })) ?? []);
 
-      const normalizedLineItems: (typeof fin.lineItems)[number][] = [];
+      const normalizedLineItems: QuoteProductLineInput[] = [];
       for (const li of fin.lineItems) {
         const p = await ctx.db.get(li.product);
         if (!p) throw new Error("Product not found");
@@ -407,9 +417,7 @@ export const updateQuote = mutation({
           ),
         );
       }
-      const normalizedServices: Parameters<
-        typeof calculateFinancialDocument
-      >[1] = [];
+      const normalizedServices: QuoteServiceLineInput[] = [];
       for (const si of serviceArgs) {
         const s = await ctx.db.get(si.service);
         if (!s) throw new Error("Service not found");
@@ -420,9 +428,7 @@ export const updateQuote = mutation({
             fin.currency,
             defaultCurrencyId,
             allCurrencies,
-          ) as NonNullable<
-            Parameters<typeof calculateFinancialDocument>[1]
-          >[number],
+          ),
         );
       }
 
@@ -898,7 +904,7 @@ export const getQuoteWithDetails = query({
         .query("invoices")
         .withIndex("by_quote", (q) => q.eq("quote", args.id))
         .first()) != null;
-    return { quote, hasInvoice };
+    return { quote, hasInvoice, hasPublicViewLink: hasPublicViewLink(quote) };
   },
 });
 
@@ -959,101 +965,45 @@ export const getQuoteAuditLog = query({
   },
 });
 
+/** Ensure a quote has a public view token (for QR on printed documents). */
+export const ensureQuotePublicViewToken = mutation({
+  args: { id: v.id("quotes") },
+  handler: async (ctx, args) => {
+    const quote = await loadQuoteIfReadable(ctx, args.id);
+    if (!quote) throw new Error("Quote not found.");
+    const token = await ensureStaffPublicViewToken(ctx, "quotes", quote);
+    return { token };
+  },
+});
+
+/** Invalidate the public view link (QR stops working). */
+export const revokeQuotePublicViewToken = mutation({
+  args: { id: v.id("quotes") },
+  handler: async (ctx, args) => {
+    const quote = await loadQuoteIfReadable(ctx, args.id);
+    if (!quote) throw new Error("Quote not found.");
+    await revokePublicViewToken(ctx, args.id);
+    return { success: true };
+  },
+});
+
+/** Issue a new public view link; the previous QR/link stops working. */
+export const rotateQuotePublicViewToken = mutation({
+  args: { id: v.id("quotes") },
+  handler: async (ctx, args) => {
+    const quote = await loadQuoteIfReadable(ctx, args.id);
+    if (!quote) throw new Error("Quote not found.");
+    const token = await rotatePublicViewToken(ctx, args.id);
+    return { token };
+  },
+});
+
 /** Full quote data for PDF printing */
 export const getQuoteForPrint = query({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) return null;
-
-    const company = quote.company ? await ctx.db.get(quote.company) : null;
-    const contact = await ctx.db.get(quote.contact);
-    const group = quote.group ? await ctx.db.get(quote.group) : null;
-    const currency = quote.currency ? await ctx.db.get(quote.currency) : null;
-    const deal = await ctx.db.get(quote.deal);
-
-    // Product names
-    const productMap = new Map<string, string>();
-    for (const item of quote.lineItems ?? []) {
-      if (!productMap.has(item.product)) {
-        const p = await ctx.db.get(item.product);
-        if (p) productMap.set(item.product, p.name);
-      }
-    }
-    // Service names
-    const serviceMap = new Map<string, string>();
-    for (const item of quote.services ?? []) {
-      if (!serviceMap.has(item.service)) {
-        const s = await ctx.db.get(item.service);
-        if (s) serviceMap.set(item.service, s.name);
-      }
-    }
-    // Terms
-    const paymentTerms = quote.paymentTerms
-      ? await ctx.db.get(quote.paymentTerms)
-      : null;
-    const shippingTerms = quote.shippingTerms
-      ? await ctx.db.get(quote.shippingTerms)
-      : null;
-    const deliveryTerms = quote.deliveryTerms
-      ? await ctx.db.get(quote.deliveryTerms)
-      : null;
-
-    return {
-      quote,
-      company: company
-        ? {
-            name: company.name,
-            address: company.address,
-            city: company.city,
-            country: company.country,
-            phone: company.phoneNumber,
-            email: company.email,
-          }
-        : null,
-      contact: contact
-        ? {
-            name:
-              [contact.firstName, contact.lastName].filter(Boolean).join(" ") ||
-              contact.email ||
-              "—",
-            email: contact.email,
-            phone: contact.phoneNumber,
-            jobTitle: contact.jobTitle,
-          }
-        : null,
-      group: group ? { name: group.name } : null,
-      currency: currency
-        ? { symbol: currency.symbol, name: currency.name }
-        : null,
-      dealTitle: deal?.title ?? null,
-      lineItems: (quote.lineItems ?? []).map((item, i) => ({
-        index: i + 1,
-        name: productMap.get(item.product) ?? "—",
-        quantity: item.quantity,
-        price: item.price,
-        discount: item.discount ?? 0,
-        priceAfterDiscount: item.priceAfterDiscount ?? item.price,
-        subtotal: item.subtotal ?? 0,
-        taxes: item.taxes ?? [],
-        taxAmount: item.taxAmount ?? 0,
-        total: item.totalAfterTax ?? 0,
-      })),
-      services: (quote.services ?? []).map((item, i) => ({
-        index: (quote.lineItems?.length ?? 0) + i + 1,
-        name: serviceMap.get(item.service) ?? "—",
-        quantity: item.quantity,
-        price: item.price,
-        discount: item.discount ?? 0,
-        priceAfterDiscount: item.priceAfterDiscount ?? item.price,
-        subtotal: item.subtotal ?? 0,
-        taxes: item.taxes ?? [],
-        taxAmount: item.taxAmount ?? 0,
-        total: item.totalAfterTax ?? 0,
-      })),
-      paymentTermsName: paymentTerms?.name ?? null,
-      shippingTermsName: shippingTerms?.name ?? null,
-      deliveryTermsName: deliveryTerms?.name ?? null,
-    };
+    return await buildQuotePrintData(ctx, quote);
   },
 });

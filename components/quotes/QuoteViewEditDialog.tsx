@@ -34,6 +34,7 @@ import { QuoteTaxTemplateSection } from "./QuoteTaxTemplateSection";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 import { CreateInvoicePreviewDialog } from "./CreateInvoicePreviewDialog";
 import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
+import { PublicViewLinkSection } from "@/components/print/PublicViewLinkSection";
 
 type QuoteStatus = NonNullable<Doc<"quotes">["status"]>;
 const STATUSES = [
@@ -99,6 +100,7 @@ export function QuoteViewEditDialog({
   );
   const quote = detail?.quote;
   const hasInvoice = detail?.hasInvoice ?? false;
+  const hasPublicViewLink = detail?.hasPublicViewLink ?? false;
   const catalogOrgGroupId = quote?.group ?? orgGroupFilter;
   const settingsOrgGroupId = quote?.group ?? effectiveOrgGroupId ?? "all";
 
@@ -156,6 +158,8 @@ export function QuoteViewEditDialog({
     const perms = currentUser?.roleDetails?.permissions ?? [];
     return perms.includes("admin:all") || perms.includes("quotes:oversell");
   }, [currentUser]);
+
+  const allowPerLineTaxes = settings?.allowPerLineTaxes ?? false;
 
   const defaultCurrencyId = useMemo(() => {
     if (!currencies?.length) return undefined;
@@ -216,6 +220,13 @@ export function QuoteViewEditDialog({
     );
     setPaymentMethod(q.paymentMethod ?? "immediate");
   }, [open, detail?.quote?._id, detail?.quote?.updatedAt, defaultCurrencyId]);
+
+  useEffect(() => {
+    if (allowPerLineTaxes) return;
+    setLines((prev) =>
+      prev.map((line) => ({ ...line, taxIds: [...taxTemplateIds] })),
+    );
+  }, [allowPerLineTaxes, taxTemplateIds]);
 
   useEffect(() => {
     if (!open || !quoteId || !products?.length) return;
@@ -281,7 +292,8 @@ export function QuoteViewEditDialog({
     const raw = lines
       .filter((l) => l.product)
       .map((l) => {
-        const taxes = buildLineTaxesPayload(l.taxIds, taxesList);
+        const taxIds = allowPerLineTaxes ? l.taxIds : taxTemplateIds;
+        const taxes = buildLineTaxesPayload(taxIds, taxesList);
         return {
           product: l.product,
           quantity: l.qty,
@@ -306,7 +318,7 @@ export function QuoteViewEditDialog({
       shipping,
       shippingTaxPayload,
     );
-  }, [lines, taxesList, generalDiscount, shipping, shippingTaxIds]);
+  }, [lines, taxesList, generalDiscount, shipping, shippingTaxIds, allowPerLineTaxes, taxTemplateIds]);
 
   const handleLineChange = (key: string, patch: Partial<LineItemForm>) => {
     setLines((prev) =>
@@ -378,7 +390,8 @@ export function QuoteViewEditDialog({
       const validLines = lines
         .filter((l) => l.product !== "")
         .map((l) => {
-          const taxes = buildLineTaxesPayload(l.taxIds, taxesList);
+          const taxIds = allowPerLineTaxes ? l.taxIds : taxTemplateIds;
+          const taxes = buildLineTaxesPayload(taxIds, taxesList);
           return {
             product: l.product as Id<"products">,
             quantity: l.qty,
@@ -582,6 +595,14 @@ export function QuoteViewEditDialog({
                   </span>
                 </div>
               </div>
+
+              {quoteId && (
+                <PublicViewLinkSection
+                  type="quote"
+                  documentId={quoteId}
+                  hasPublicViewLink={hasPublicViewLink}
+                />
+              )}
             </div>
             <div className="border-border flex shrink-0 justify-end gap-2 border-t px-6 py-4">
               <button
@@ -646,8 +667,11 @@ export function QuoteViewEditDialog({
               <QuoteTaxTemplateSection
                 taxesList={taxesList}
                 taxTemplateIds={taxTemplateIds}
+                allowPerLineTaxes={allowPerLineTaxes}
                 onToggleTax={toggleTaxTemplate}
-                onApplyToAllLines={applyTaxTemplateToAllLines}
+                onApplyToAllLines={
+                  allowPerLineTaxes ? applyTaxTemplateToAllLines : undefined
+                }
               />
 
               <div className="border-border border-t" />
@@ -666,6 +690,7 @@ export function QuoteViewEditDialog({
                   setLines((p) => p.filter((l) => l.key !== key))
                 }
                 onToggleLineTax={toggleLineTax}
+                allowPerLineTaxes={allowPerLineTaxes}
                 canOversellQuotes={canOversellQuotes}
               />
 
@@ -681,6 +706,14 @@ export function QuoteViewEditDialog({
                 shippingTaxIds={shippingTaxIds}
                 onToggleShippingTax={toggleShippingTax}
               />
+
+              {quoteId && (
+                <PublicViewLinkSection
+                  type="quote"
+                  documentId={quoteId}
+                  hasPublicViewLink={hasPublicViewLink}
+                />
+              )}
             </div>
 
             <div className="border-border flex shrink-0 flex-wrap items-center justify-between gap-2 border-t px-6 py-4">

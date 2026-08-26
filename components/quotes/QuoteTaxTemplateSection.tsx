@@ -6,13 +6,15 @@ import type { Doc, Id } from "@/convex/_generated/dataModel";
 type Props = {
   taxesList: Doc<"taxes">[] | undefined;
   taxTemplateIds: Id<"taxes">[];
+  allowPerLineTaxes: boolean;
   onToggleTax: (id: Id<"taxes">) => void;
-  onApplyToAllLines: () => void;
+  onApplyToAllLines?: () => void;
 };
 
 export function QuoteTaxTemplateSection({
   taxesList,
   taxTemplateIds,
+  allowPerLineTaxes,
   onToggleTax,
   onApplyToAllLines,
 }: Props) {
@@ -21,8 +23,12 @@ export function QuoteTaxTemplateSection({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-medium">{t("createTaxes")}</p>
-      <p className="text-muted-foreground mb-2 text-xs">{t("createTaxesHint")}</p>
+      <p className="mb-2 text-sm font-medium">
+        {allowPerLineTaxes ? t("createTaxes") : t("documentTaxes")}
+      </p>
+      <p className="text-muted-foreground mb-2 text-xs">
+        {allowPerLineTaxes ? t("createTaxesHint") : t("documentTaxesHint")}
+      </p>
       <div className="flex flex-wrap gap-2">
         {taxesList.map((tx) => (
           <label
@@ -46,13 +52,15 @@ export function QuoteTaxTemplateSection({
           </label>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onApplyToAllLines}
-        className="text-primary hover:bg-primary/10 mt-3 w-full rounded-lg border border-dashed px-3 py-2 text-sm font-medium transition-colors"
-      >
-        {t("applyTaxesToAllLines")}
-      </button>
+      {allowPerLineTaxes && onApplyToAllLines && (
+        <button
+          type="button"
+          onClick={onApplyToAllLines}
+          className="text-primary hover:bg-primary/10 mt-3 w-full rounded-lg border border-dashed px-3 py-2 text-sm font-medium transition-colors"
+        >
+          {t("applyTaxesToAllLines")}
+        </button>
+      )}
     </div>
   );
 }

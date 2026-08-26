@@ -34,6 +34,12 @@ const PRINT_CSS = `
       padding: 0 !important;
       min-height: 0 !important;
     }
+    .doc-company-logo {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      max-height: 56px !important;
+      max-width: 180px !important;
+    }
     .no-print { display: none !important; }
     @page { size: A4; margin: 15mm 20mm; }
   }
@@ -62,20 +68,167 @@ const PRINT_CSS = `
   .mb-6 { margin-bottom: 24px; }
 
   /* ── Document header ─────────────────────────────────────── */
+  /* Header grid uses physical LTR columns; Arabic text uses dir=rtl inside blocks. */
   .doc-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    display: grid;
+    gap: 12px 20px;
+    align-items: start;
     padding-bottom: 16px;
     border-bottom: 2px solid #1a1a1a;
     margin-bottom: 20px;
+    direction: ltr;
   }
-  .doc-company-name { font-size: 20px; font-weight: 700; }
-  .doc-company-sub  { font-size: 11px; color: #666; margin-top: 2px; }
-  .doc-title-block  { text-align: end; }
-  .doc-title        { font-size: 22px; font-weight: 700; color: #1a1a1a; letter-spacing: 2px; text-transform: uppercase; }
-  .doc-number       { font-size: 13px; font-weight: 600; margin-top: 4px; }
-  .doc-meta         { font-size: 11px; color: #555; margin-top: 2px; }
+  .doc-header--ar.doc-header--with-qr {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "company document qr";
+  }
+  .doc-header--ar.doc-header--no-qr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "company document";
+  }
+  .doc-header--en.doc-header--with-qr {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas: "document qr company";
+  }
+  .doc-header--en.doc-header--no-qr {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "document company";
+  }
+  .doc-header-company { grid-area: company; min-width: 0; }
+  .doc-header-document { grid-area: document; min-width: 0; }
+  .doc-header-qr {
+    grid-area: qr;
+    align-self: center;
+    justify-self: end;
+  }
+  .doc-header--ar .doc-header-company {
+    justify-self: start;
+    text-align: left;
+  }
+  .doc-header--ar .doc-header-document {
+    justify-self: end;
+    text-align: right;
+  }
+  .doc-header--en .doc-header-company {
+    justify-self: end;
+    text-align: right;
+  }
+  .doc-header--en .doc-header-document {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .doc-company-name { font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .doc-company-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  /* AR: logo on the left, company text to its right */
+  .doc-header--ar .doc-company-row {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+  /* EN: company block on the right — logo on the outer edge */
+  .doc-header--en .doc-company-row {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+  }
+  .doc-company-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+  }
+  .doc-header--ar .doc-company-details {
+    text-align: right;
+  }
+  .doc-header--en .doc-company-details {
+    text-align: right;
+  }
+  .doc-company-logo {
+    max-height: 52px;
+    max-width: 120px;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+  }
+  .doc-company-meta,
+  .doc-company-meta-line {
+    font-size: 10px;
+    color: #555;
+    line-height: 1.45;
+  }
+  .doc-company-meta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .doc-company-meta-label {
+    color: #888;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .doc-company-meta-value { font-weight: 500; }
+  .doc-company-sub  { font-size: 10px; color: #666; margin-top: 2px; }
+
+  .doc-title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+    max-width: 100%;
+  }
+  .doc-header--ar .doc-title-row { flex-direction: row; }
+  .doc-header--en .doc-title-row { flex-direction: row; }
+  .doc-meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 4px;
+  }
+  .doc-header--ar .doc-meta-list { align-items: flex-end; }
+  .doc-header--en .doc-meta-list { align-items: flex-start; }
+
+  .doc-qr-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .doc-header-qr .doc-qr-image svg {
+    display: block;
+    width: 72px;
+    height: 72px;
+  }
+  .doc-qr-label {
+    font-size: 8px;
+    color: #666;
+    line-height: 1.25;
+    max-width: 76px;
+    text-align: center;
+  }
+  .doc-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+  }
+  .doc-header--en .doc-title {
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .doc-number {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-top: 2px;
+  }
+  .doc-meta { font-size: 11px; color: #555; line-height: 1.4; }
 
   /* ── Client info ─────────────────────────────────────────── */
   .client-section {
@@ -211,12 +364,13 @@ const PRINT_CSS = `
   /* ── Status badge ────────────────────────────────────────── */
   .status-badge {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 2px 10px;
     border-radius: 99px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     border: 1px solid currentColor;
-    margin-top: 4px;
+    line-height: 1.4;
+    white-space: nowrap;
   }
 
   /* ── Footer ──────────────────────────────────────────────── */

@@ -37,12 +37,6 @@ export function QuoteSummaryPanel({
           </span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{t("summaryTax")}</span>
-          <span className="text-muted-foreground tabular-nums">
-            {fmt(taxAmount)}
-          </span>
-        </div>
-        <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">{t("summaryDiscount")}</span>
           <span className="text-muted-foreground tabular-nums">
             − {fmt(generalDiscount)}
@@ -52,6 +46,12 @@ export function QuoteSummaryPanel({
           <span className="text-muted-foreground">{t("summaryShipping")}</span>
           <span className="text-muted-foreground tabular-nums">
             {fmt(shipping)}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("summaryTax")}</span>
+          <span className="text-muted-foreground tabular-nums">
+            {fmt(taxAmount)}
           </span>
         </div>
         <div className="border-border mt-2 border-t pt-2">

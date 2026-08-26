@@ -8,6 +8,8 @@ import { IconAlertTriangle, IconPencil, IconTrash, IconX } from "@tabler/icons-r
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { Btn, FieldRow, Input, SectionCard, Select } from "./settingsShared";
+import { CompanyLogoField } from "./CompanyLogoField";
+import { SaudiNationalAddressFields } from "@/components/companies/SaudiNationalAddressFields";
 
 type EditForm = {
   id: Id<"groups">;
@@ -15,6 +17,14 @@ type EditForm = {
   description: string;
   parentId: Id<"groups"> | "";
   isDefault: boolean;
+  taxNumber: string;
+  nationalAddress: string;
+  buildingNumber: string;
+  address: string;
+  district: string;
+  secondaryNumber: string;
+  city: string;
+  zipCode: string;
 };
 
 function DeleteCompanyDialog({
@@ -202,6 +212,14 @@ export function OrgCompaniesTab() {
       description: row.description ?? "",
       parentId: row.parent ?? "",
       isDefault: row.isDefault === true,
+      taxNumber: row.taxNumber ?? "",
+      nationalAddress: row.nationalAddress ?? "",
+      buildingNumber: row.buildingNumber ?? "",
+      address: row.address ?? "",
+      district: row.district ?? "",
+      secondaryNumber: row.secondaryNumber ?? "",
+      city: row.city ?? "",
+      zipCode: row.zipCode ?? "",
     });
   };
 
@@ -219,6 +237,14 @@ export function OrgCompaniesTab() {
         id: editing.id,
         name: editing.name.trim(),
         description: editing.description.trim() || undefined,
+        taxNumber: editing.taxNumber.trim() || undefined,
+        nationalAddress: editing.nationalAddress || undefined,
+        buildingNumber: editing.buildingNumber || undefined,
+        address: editing.address.trim() || undefined,
+        district: editing.district.trim() || undefined,
+        secondaryNumber: editing.secondaryNumber || undefined,
+        city: editing.city.trim() || undefined,
+        zipCode: editing.zipCode || undefined,
         ...(!editing.isDefault
           ? { parent: editing.parentId || undefined }
           : {}),
@@ -305,6 +331,36 @@ export function OrgCompaniesTab() {
                           />
                         </FieldRow>
                       </div>
+                      <div className="sm:col-span-2">
+                        <CompanyLogoField orgGroupId={editing.id} />
+                      </div>
+                      <FieldRow label={t("orgCompanyTaxNumber")}>
+                        <Input
+                          value={editing.taxNumber}
+                          onChange={(e) =>
+                            setEditing({
+                              ...editing,
+                              taxNumber: e.target.value,
+                            })
+                          }
+                          placeholder={t("orgCompanyTaxNumberPlaceholder")}
+                        />
+                      </FieldRow>
+                      <SaudiNationalAddressFields
+                        namespace="settingsPage"
+                        values={{
+                          nationalAddress: editing.nationalAddress,
+                          buildingNumber: editing.buildingNumber,
+                          address: editing.address,
+                          district: editing.district,
+                          secondaryNumber: editing.secondaryNumber,
+                          city: editing.city,
+                          zipCode: editing.zipCode,
+                        }}
+                        onChange={(key, value) =>
+                          setEditing({ ...editing, [key]: value })
+                        }
+                      />
                     </div>
                     {editing.isDefault && (
                       <p className="text-muted-foreground text-xs">

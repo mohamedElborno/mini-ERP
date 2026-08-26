@@ -14,6 +14,7 @@ type Props = {
   onChange: (key: string, patch: Partial<LineItemForm>) => void;
   onRemove: (key: string) => void;
   onToggleLineTax: (key: string, taxId: Id<"taxes">) => void;
+  allowPerLineTaxes?: boolean;
   locale: string;
   getLinePriceForProduct: (prod: Doc<"products">) => number;
   /** يسمح بعرض سعر بكمية تتجاوز المتاح (صلاحية quotes:oversell) */
@@ -27,6 +28,7 @@ export function QuoteLineItemCard({
   onChange,
   onRemove,
   onToggleLineTax,
+  allowPerLineTaxes = false,
   locale,
   getLinePriceForProduct,
   canOversellQuotes,
@@ -161,7 +163,7 @@ export function QuoteLineItemCard({
         </div>
       </div>
 
-      {taxesList && taxesList.length > 0 && (
+      {allowPerLineTaxes && taxesList && taxesList.length > 0 && (
         <div className="mt-3">
           <p className={labelCls}>{t("lineTaxesLabel")}</p>
           <div className="flex flex-wrap gap-2">

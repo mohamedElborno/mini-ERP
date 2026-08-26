@@ -19,6 +19,7 @@ import {
   IconWorld,
 } from "@tabler/icons-react";
 import { AddCompanyDialog } from "@/components/companies/AddCompanyDialog";
+import { SaudiNationalAddressFields } from "@/components/companies/SaudiNationalAddressFields";
 import { CompanyCreditTab } from "@/components/companies/CompanyCreditTab";
 import {
   ListSearchInput,
@@ -178,6 +179,12 @@ function CompanyDetailsTab({ company }: { company: Company }) {
     country: company.country ?? "",
     city: company.city ?? "",
     address: company.address ?? "",
+    taxNumber: company.taxNumber ?? "",
+    nationalAddress: company.nationalAddress ?? "",
+    buildingNumber: company.buildingNumber ?? "",
+    district: company.district ?? "",
+    secondaryNumber: company.secondaryNumber ?? "",
+    zipCode: company.zipCode ?? "",
     creditLimit:
       company.creditLimit != null ? String(company.creditLimit) : "",
     creditPeriodDays:
@@ -212,6 +219,12 @@ function CompanyDetailsTab({ company }: { company: Company }) {
         ...(form.city ? { city: form.city } : {}),
         ...(form.country ? { country: form.country } : {}),
         ...(form.address ? { address: form.address } : {}),
+        ...(form.taxNumber ? { taxNumber: form.taxNumber.trim() } : {}),
+        ...(form.nationalAddress ? { nationalAddress: form.nationalAddress } : {}),
+        ...(form.buildingNumber ? { buildingNumber: form.buildingNumber } : {}),
+        ...(form.district ? { district: form.district.trim() } : {}),
+        ...(form.secondaryNumber ? { secondaryNumber: form.secondaryNumber } : {}),
+        ...(form.zipCode ? { zipCode: form.zipCode } : {}),
         ...(form.creditLimit.trim()
           ? { creditLimit: parseFloat(form.creditLimit) }
           : { creditLimit: 0 }),
@@ -291,13 +304,32 @@ function CompanyDetailsTab({ company }: { company: Company }) {
             />
           </div>
           {/* Address */}
-          <div className="sm:col-span-2">
-            <label className={labelCls}>{t("fieldAddress")}</label>
+          <div>
+            <label className={labelCls}>{t("fieldTaxNumber")}</label>
             <input
               className={inputCls}
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
+              value={form.taxNumber}
+              placeholder={t("fieldTaxNumberPlaceholder")}
+              onChange={(e) => set("taxNumber", e.target.value)}
             />
+          </div>
+          <SaudiNationalAddressFields
+            values={{
+              nationalAddress: form.nationalAddress,
+              buildingNumber: form.buildingNumber,
+              address: form.address,
+              district: form.district,
+              secondaryNumber: form.secondaryNumber,
+              city: form.city,
+              zipCode: form.zipCode,
+            }}
+            onChange={(key, value) => set(key as keyof typeof form, value)}
+            showCity={false}
+          />
+          <div className="border-border sm:col-span-2 border-t pt-3">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              {t("tabCredit")}
+            </p>
           </div>
           <div>
             <label className={labelCls}>{t("creditLimit")}</label>
@@ -395,13 +427,24 @@ function CompanyDetailsTab({ company }: { company: Company }) {
         />
         <Row label={t("fieldCountry")} value={company.country} />
         <Row label={t("fieldCity")} value={company.city} />
-        <Row label={t("fieldAddress")} value={company.address} />
+        <Row label={t("fieldShortAddress")} value={company.nationalAddress} />
+        <Row label={t("fieldBuildingNumber")} value={company.buildingNumber} />
+        <Row label={t("fieldStreet")} value={company.address} />
+        <Row label={t("fieldDistrict")} value={company.district} />
+        <Row label={t("fieldSecondaryNumber")} value={company.secondaryNumber} />
+        <Row label={t("fieldPostalCode")} value={company.zipCode} />
+        <Row label={t("fieldTaxNumber")} value={company.taxNumber} />
         <Row
           label={t("fieldPrepaidBalance")}
           value={new Intl.NumberFormat(locale, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }).format(company.prepaidBalance ?? 0)}
+        />
+        <div
+          className="border-border -mx-4 border-t"
+          role="separator"
+          aria-hidden
         />
         <Row
           label={t("creditLimit")}

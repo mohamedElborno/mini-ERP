@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 import { CountrySelect, StateSelect } from "@/components/ui/location-select";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { SaudiNationalAddressFields } from "@/components/companies/SaudiNationalAddressFields";
 import type { Country } from "react-phone-number-input";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -31,6 +32,11 @@ const emptyForm = {
   city: "",
   zipCode: "",
   address: "",
+  taxNumber: "",
+  nationalAddress: "",
+  buildingNumber: "",
+  district: "",
+  secondaryNumber: "",
   _countryCode: "" as Country | "",
 };
 
@@ -85,6 +91,11 @@ export function AddCompanyDialog({ open, onClose, onCreated }: Props) {
         ...(form.city ? { city: form.city.trim() } : {}),
         ...(form.zipCode ? { zipCode: form.zipCode.trim() } : {}),
         ...(form.address ? { address: form.address.trim() } : {}),
+        ...(form.taxNumber ? { taxNumber: form.taxNumber.trim() } : {}),
+        ...(form.nationalAddress ? { nationalAddress: form.nationalAddress } : {}),
+        ...(form.buildingNumber ? { buildingNumber: form.buildingNumber } : {}),
+        ...(form.district ? { district: form.district.trim() } : {}),
+        ...(form.secondaryNumber ? { secondaryNumber: form.secondaryNumber } : {}),
       });
       toast.success(t("companyAdded"));
       setForm(emptyForm);
@@ -211,27 +222,21 @@ export function AddCompanyDialog({ open, onClose, onCreated }: Props) {
               />
             </div>
 
-            {/* Zip */}
             <div>
-              <label className={labelCls}>{t("createZip")}</label>
+              <label className={labelCls}>{t("fieldTaxNumber")}</label>
               <input
                 className={inputCls}
-                value={form.zipCode}
-                placeholder="10001"
-                onChange={(e) => set("zipCode", e.target.value)}
+                value={form.taxNumber}
+                placeholder={t("fieldTaxNumberPlaceholder")}
+                onChange={(e) => set("taxNumber", e.target.value)}
               />
             </div>
 
-            {/* Address */}
-            <div className="sm:col-span-2">
-              <label className={labelCls}>{t("createAddress")}</label>
-              <input
-                className={inputCls}
-                value={form.address}
-                placeholder={t("createAddressPlaceholder")}
-                onChange={(e) => set("address", e.target.value)}
-              />
-            </div>
+            <SaudiNationalAddressFields
+              values={form}
+              onChange={set}
+              showCity={false}
+            />
           </div>
 
           {/* Footer actions */}

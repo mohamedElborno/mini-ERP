@@ -42,6 +42,11 @@ function isPrintPathname(pathname: string | null) {
   return pathname === "/print" || pathname.startsWith("/print/");
 }
 
+function isPublicViewPathname(pathname: string | null) {
+  if (!pathname) return false;
+  return pathname === "/view" || pathname.startsWith("/view/");
+}
+
 export default function DashboardLayoutClient({
   children,
 }: DashboardLayoutClientProps) {
@@ -148,6 +153,10 @@ export default function DashboardLayoutClient({
   }
 
   if (isPrintPathname(pathname)) {
+    return <>{children}</>;
+  }
+
+  if (isPublicViewPathname(pathname)) {
     return <>{children}</>;
   }
 

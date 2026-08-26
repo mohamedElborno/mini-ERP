@@ -9,6 +9,7 @@ import { formatQuoteWithRevision } from "@/lib/quoteDisplay";
 import { labelCls } from "@/components/quotes/quoteFormShared";
 import { useOrgGroup } from "@/components/providers/OrgGroupProvider";
 import { PrintDocumentButton } from "@/components/print/PrintDocumentButton";
+import { PublicViewLinkSection } from "@/components/print/PublicViewLinkSection";
 
 type Props = {
   open: boolean;
@@ -412,6 +413,16 @@ export function InvoiceViewDialog({
             </>
           )}
         </div>
+
+        {invoiceId && invoice && (
+          <div className="border-border shrink-0 border-t px-5 py-4">
+            <PublicViewLinkSection
+              type="invoice"
+              documentId={invoiceId}
+              hasPublicViewLink={detail?.hasPublicViewLink ?? false}
+            />
+          </div>
+        )}
 
         <div className="border-border flex shrink-0 justify-end border-t px-5 py-4">
           <button

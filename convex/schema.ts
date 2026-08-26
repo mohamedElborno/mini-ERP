@@ -120,6 +120,18 @@ export default defineSchema({
     children: v.optional(v.array(v.id("groups"))),
     /** Auto-created default company when workspace has none */
     isDefault: v.optional(v.boolean()),
+    /** Company logo for printed documents */
+    logoStorageId: v.optional(v.id("_storage")),
+    /** SPL short address — 4 letters + 4 digits */
+    nationalAddress: v.optional(v.string()),
+    buildingNumber: v.optional(v.string()),
+    address: v.optional(v.string()),
+    district: v.optional(v.string()),
+    secondaryNumber: v.optional(v.string()),
+    city: v.optional(v.string()),
+    zipCode: v.optional(v.string()),
+    /** VAT / tax registration number (printed on documents) */
+    taxNumber: v.optional(v.string()),
     createdBy: v.optional(v.id("users")),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.number()),
@@ -165,6 +177,16 @@ export default defineSchema({
     countryCode: v.optional(v.string()),
     zipCode: v.optional(v.string()),
     address: v.optional(v.string()),
+    /** SPL short address — 4 letters + 4 digits (e.g. RRRD2929) */
+    nationalAddress: v.optional(v.string()),
+    /** Building number — 4 digits */
+    buildingNumber: v.optional(v.string()),
+    /** District / neighborhood (الحي) */
+    district: v.optional(v.string()),
+    /** Secondary number (الرقم الفرعي) — 4 digits */
+    secondaryNumber: v.optional(v.string()),
+    /** VAT / tax registration number */
+    taxNumber: v.optional(v.string()),
     website: v.optional(v.string()),
     email: v.optional(v.string()),
     phoneNumber: v.optional(v.string()),
@@ -448,6 +470,12 @@ export default defineSchema({
     invoiced: v.optional(v.boolean()),
     /** Legacy / partial-close flag stored on some quote documents */
     quoteClosingAmountsInvoiced: v.optional(v.boolean()),
+    /** Legacy plaintext token — migrated to hash; do not write new values */
+    publicViewToken: v.optional(v.string()),
+    /** SHA-256 hash of the public view token (lookup only) */
+    publicViewTokenHash: v.optional(v.string()),
+    /** AES-GCM encrypted token for authorized re-print (optional) */
+    publicViewTokenEnc: v.optional(v.string()),
     createdBy: v.id("users"),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.number()),
@@ -458,7 +486,9 @@ export default defineSchema({
     .index("by_contact", ["contact"])
     .index("by_group", ["group"])
     .index("by_status", ["status"])
-    .index("by_group_status", ["group", "status"]),
+    .index("by_group_status", ["group", "status"])
+    .index("by_publicViewToken", ["publicViewToken"])
+    .index("by_publicViewTokenHash", ["publicViewTokenHash"]),
 
   /** Audit log: quotes, deals, invoices, etc. */
   auditLogs: defineTable({
@@ -519,6 +549,12 @@ export default defineSchema({
     shippingTerms: v.optional(v.id("shippingTerms")),
     deliveryTerms: v.optional(v.id("deliveryTerms")),
     deliveryDate: v.optional(v.number()),
+    /** Legacy plaintext token — migrated to hash; do not write new values */
+    publicViewToken: v.optional(v.string()),
+    /** SHA-256 hash of the public view token (lookup only) */
+    publicViewTokenHash: v.optional(v.string()),
+    /** AES-GCM encrypted token for authorized re-print (optional) */
+    publicViewTokenEnc: v.optional(v.string()),
     createdBy: v.id("users"),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.number()),
@@ -531,7 +567,9 @@ export default defineSchema({
     .index("by_contact", ["contact"])
     .index("by_deal", ["deal"])
     .index("by_group", ["group"])
-    .index("by_group_status", ["group", "status"]),
+    .index("by_group_status", ["group", "status"])
+    .index("by_publicViewToken", ["publicViewToken"])
+    .index("by_publicViewTokenHash", ["publicViewTokenHash"]),
 
   /** Receipt vouchers — payments linked to invoices, deals, quotes, or general credit */
   receiptVouchers: defineTable({
@@ -819,6 +857,14 @@ export default defineSchema({
     receiptVoucherNumberIncludeYear: v.optional(v.boolean()),
     receiptVoucherNumberPadding: v.optional(v.number()),
     receiptVoucherNextSequence: v.optional(v.number()),
+
+    /** When false (default), document-level taxes apply to all lines uniformly. */
+    allowPerLineTaxes: v.optional(v.boolean()),
+    /** Taxes pre-selected when creating a new quote. */
+    defaultTaxIds: v.optional(v.array(v.id("taxes"))),
+
+    /** Company logo for print documents (quotes, invoices). */
+    companyLogoStorageId: v.optional(v.id("_storage")),
 
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.number()),
