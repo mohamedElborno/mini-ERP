@@ -1,5 +1,6 @@
+import { consumePublicViewBudget } from "./publicViewLimit";
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { mutation } from "./_generated/server";
 import {
   buildInvoicePrintData,
   buildQuotePrintData,
@@ -8,10 +9,11 @@ import { isValidPublicViewToken } from "./lib/publicViewToken";
 import { lookupByPublicViewToken } from "./lib/publicViewTokenStorage";
 
 /** Public read-only quote view — no authentication; token is the credential. */
-export const getPublicQuoteByToken = query({
+export const getPublicQuoteByToken = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
     if (!isValidPublicViewToken(args.token)) return null;
+    if (!(await consumePublicViewBudget(ctx, args.token))) return null;
 
     const quote = await lookupByPublicViewToken(ctx, "quotes", args.token);
     if (!quote) return null;
@@ -21,10 +23,11 @@ export const getPublicQuoteByToken = query({
 });
 
 /** Public read-only invoice view — no authentication; token is the credential. */
-export const getPublicInvoiceByToken = query({
+export const getPublicInvoiceByToken = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
     if (!isValidPublicViewToken(args.token)) return null;
+    if (!(await consumePublicViewBudget(ctx, args.token))) return null;
 
     const invoice = await lookupByPublicViewToken(ctx, "invoices", args.token);
     if (!invoice) return null;

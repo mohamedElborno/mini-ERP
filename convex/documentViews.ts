@@ -36,7 +36,7 @@ export async function buildQuotePrintData(ctx: QueryCtx, quote: Doc<"quotes">) {
     : null;
 
   return {
-    quote,
+    quote: { number: quote.number, revision: quote.revision, status: quote.status, description: quote.description, issueDate: quote.issueDate, dueDate: quote.dueDate, expirationDate: quote.expirationDate, deliveryDate: quote.deliveryDate, paymentMethod: quote.paymentMethod, subtotal: quote.subtotal, discount: quote.discount, shippingAmount: quote.shippingAmount, shippingTaxes: quote.shippingTaxes, taxAmount: quote.taxAmount, total: quote.total },
     hasPublicViewLink: Boolean(
       quote.publicViewTokenHash ??
         quote.publicViewTokenEnc ??
@@ -141,7 +141,7 @@ export async function buildInvoicePrintData(
     : null;
 
   return {
-    invoice,
+    invoice: { number: invoice.number, status: invoice.status, description: invoice.description, issueDate: invoice.issueDate, dueDate: invoice.dueDate, deliveryDate: invoice.deliveryDate, subtotal: invoice.subtotal, discount: invoice.discount, shippingAmount: invoice.shippingAmount, taxAmount: invoice.taxAmount, total: invoice.total },
     hasPublicViewLink: Boolean(
       invoice.publicViewTokenHash ??
         invoice.publicViewTokenEnc ??

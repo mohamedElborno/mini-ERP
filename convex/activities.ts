@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -71,6 +72,7 @@ export const createActivity = mutation({
     activityDescription: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "activities.createActivity");
     const currentUser = await requirePermission(ctx, "activities:create");
 
     // Check if the employee has permission to work on this deal
@@ -109,6 +111,7 @@ export const updateActivity = mutation({
     activityDescription: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "activities.updateActivity");
     const currentUser = await requirePermission(ctx, "activities:update");
 
     const activity = await ctx.db.get(args.id);
@@ -145,6 +148,7 @@ export const getActivitiesByDeal = query({
     dealId: v.id("deals"),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "activities.getActivitiesByDeal");
     const currentUser = await requirePermission(ctx, "activities:read");
 
     // If the employee does not have permission to view the deal, this function will automatically throw an error

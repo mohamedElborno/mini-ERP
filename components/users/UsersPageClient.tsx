@@ -229,13 +229,13 @@ function UsersQueryBody() {
   const skip = authLoading || !isAuthenticated;
 
   const currentUser = useQuery(api.users.getCurrentUser, skip ? "skip" : {});
-  const users = useQuery(api.users.getUsers, skip ? "skip" : {});
+  const isAdmin = currentUser?.roleDetails?.permissions.includes("admin:all") ?? false;
+  const users = useQuery(api.users.getUsers, skip || !isAdmin ? "skip" : {});
 
   const [showInvite, setShowInvite] = useState(false);
 
   const canInvite = Boolean(
-    currentUser?.roleDetails?.permissions.includes("admin:all") ||
-    currentUser?.roleDetails?.permissions.includes("users:update"),
+    currentUser?.roleDetails?.permissions.includes("admin:all"),
   );
 
   if (authLoading || !isAuthenticated || currentUser === undefined) {
@@ -261,7 +261,7 @@ function UsersQueryBody() {
         </div>
       )}
 
-      <PendingInvitationsTable />
+      {isAdmin && <PendingInvitationsTable />}
 
       <UsersTable users={(users as UserWithDetails[]) ?? []} locale={locale} />
 

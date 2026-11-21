@@ -68,6 +68,7 @@ export const serviceLineItemValidator = v.object({
 });
 
 export default defineSchema({
+  publicViewBudget: defineTable({ resetAt: v.number(), total: v.number(), counts: v.record(v.string(), v.number()) }),
   /** Users table schema
    * @description Users table schema
    * @property {string} clerkId - The clerk ID of the user
@@ -473,6 +474,7 @@ export default defineSchema({
     /** Legacy plaintext token — migrated to hash; do not write new values */
     publicViewToken: v.optional(v.string()),
     /** SHA-256 hash of the public view token (lookup only) */
+    publicViewTokenExpiresAt: v.optional(v.number()),
     publicViewTokenHash: v.optional(v.string()),
     /** AES-GCM encrypted token for authorized re-print (optional) */
     publicViewTokenEnc: v.optional(v.string()),
@@ -552,6 +554,7 @@ export default defineSchema({
     /** Legacy plaintext token — migrated to hash; do not write new values */
     publicViewToken: v.optional(v.string()),
     /** SHA-256 hash of the public view token (lookup only) */
+    publicViewTokenExpiresAt: v.optional(v.number()),
     publicViewTokenHash: v.optional(v.string()),
     /** AES-GCM encrypted token for authorized re-print (optional) */
     publicViewTokenEnc: v.optional(v.string()),

@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Doc, Id } from "./_generated/dataModel";
@@ -156,6 +157,7 @@ export const createInvoice = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.createInvoice");
     // 1. Check the permissions
     const currentUser = await requirePermission(ctx, "invoices:create");
 
@@ -354,6 +356,7 @@ export const updateInvoiceStatus = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.updateInvoiceStatus");
     const currentUser = await requirePermission(ctx, "invoices:update");
 
     const invoice = await ctx.db.get(args.id);
@@ -402,6 +405,7 @@ export const getInvoices = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.getInvoices");
     const currentUser = await requirePermission(ctx, "invoices:read");
 
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
@@ -470,6 +474,7 @@ export const listInvoicesPaginated = query({
     search: listSearchValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.listInvoicesPaginated");
     const { user, isAdmin, accessible } = await getListAuth(
       ctx,
       "invoices:read",
@@ -564,6 +569,7 @@ export const listInvoicesPaginated = query({
 export const getInvoiceListStats = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.getInvoiceListStats");
     const { user, isAdmin, accessible } = await getListAuth(
       ctx,
       "invoices:read",
@@ -632,6 +638,7 @@ export const getInvoiceListStats = query({
 export const getInvoiceWithDetails = query({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.getInvoiceWithDetails");
     const invoice = await loadInvoiceIfReadable(ctx, args.id);
     if (!invoice) return null;
     const quote = await ctx.db.get(invoice.quote);
@@ -650,6 +657,7 @@ export const getInvoiceWithDetails = query({
 export const ensureInvoicePublicViewToken = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.ensureInvoicePublicViewToken");
     const invoice = await loadInvoiceIfReadable(ctx, args.id);
     if (!invoice) throw new Error("Invoice not found.");
     const token = await ensureStaffPublicViewToken(ctx, "invoices", invoice);
@@ -661,6 +669,7 @@ export const ensureInvoicePublicViewToken = mutation({
 export const revokeInvoicePublicViewToken = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.revokeInvoicePublicViewToken");
     const invoice = await loadInvoiceIfReadable(ctx, args.id);
     if (!invoice) throw new Error("Invoice not found.");
     await revokePublicViewToken(ctx, args.id);
@@ -672,6 +681,7 @@ export const revokeInvoicePublicViewToken = mutation({
 export const rotateInvoicePublicViewToken = mutation({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.rotateInvoicePublicViewToken");
     const invoice = await loadInvoiceIfReadable(ctx, args.id);
     if (!invoice) throw new Error("Invoice not found.");
     const token = await rotatePublicViewToken(ctx, args.id);
@@ -683,6 +693,7 @@ export const rotateInvoicePublicViewToken = mutation({
 export const getInvoiceForPrint = query({
   args: { id: v.id("invoices") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invoices.getInvoiceForPrint");
     const invoice = await loadInvoiceIfReadable(ctx, args.id);
     if (!invoice) return null;
     return await buildInvoicePrintData(ctx, invoice);

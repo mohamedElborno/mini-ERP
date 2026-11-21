@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
@@ -97,6 +98,8 @@ export const bootstrapAdmin = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
+    if (!process.env.BOOTSTRAP_ADMIN_SUBJECT || identity.subject !== process.env.BOOTSTRAP_ADMIN_SUBJECT) throw new Error("Forbidden: Bootstrap owner not configured");
+    if (await ctx.db.query("roles").first()) throw new Error("Workspace already initialized.");
 
     // SECURITY: Atomic guard — no admin user must exist
     const allRoles = await ctx.db.query("roles").collect();
@@ -252,6 +255,7 @@ export const getCurrentUser = query({
 export const getUnassignedUsers = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "users.getUnassignedUsers");
     return await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("role"), undefined))
@@ -262,6 +266,7 @@ export const getUnassignedUsers = query({
 export const getUsers = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "users.getUsers");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
@@ -305,6 +310,7 @@ export const assignUserRole = mutation({
     managerId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "users.assignUserRole");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
 
@@ -316,7 +322,7 @@ export const assignUserRole = mutation({
     if (!adminUser || !adminUser.role) throw new Error("Unauthorized Access");
 
     const adminRole = await ctx.db.get(adminUser.role);
-    if (!adminRole?.permissions.includes("users:update")) {
+    if (!adminRole?.permissions.includes("admin:all")) {
       throw new Error("Forbidden: You don't have permission to manage users");
     }
 
@@ -324,6 +330,7 @@ export const assignUserRole = mutation({
       throw new Error("At least one company must be assigned.");
     }
 
+    if (!(await ctx.db.get(args.targetUserId)) || !(await ctx.db.get(args.roleId))) throw new Error("User or role not found");
     const uniqueGroupIds = [...new Set(args.groupIds)];
     for (const groupId of uniqueGroupIds) {
       const group = await ctx.db.get(groupId);
@@ -349,6 +356,7 @@ export const updateUserAssignedGroups = mutation({
     groupIds: v.array(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "users.updateUserAssignedGroups");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
 

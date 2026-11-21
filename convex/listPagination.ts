@@ -45,8 +45,8 @@ export function rowInAccessibleGroups<T extends { group?: Id<"groups"> | null }>
   row: T,
   accessible: Id<"groups">[],
 ) {
-  if (accessible.length === 0) return true;
-  return !row.group || accessible.includes(row.group);
+  if (accessible.length === 0) return false;
+  return !!row.group && accessible.includes(row.group);
 }
 
 export async function loadDealTitleMap(
@@ -136,7 +136,7 @@ export async function loadAccessibleDealIds(
     .query("deals")
     .withIndex("by_owner", (q) => q.eq("owner", user._id))
     .collect();
-  for (const deal of owned) ids.add(deal._id);
+  for (const deal of owned) if (rowInAccessibleGroups(deal, accessible)) ids.add(deal._id);
 
   for (const groupId of accessible) {
     const groupDeals = await ctx.db

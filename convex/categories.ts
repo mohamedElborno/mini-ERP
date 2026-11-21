@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -39,6 +40,7 @@ export const createCategory = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "categories.createCategory");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "categories:create",
@@ -77,6 +79,7 @@ export const updateCategory = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "categories.updateCategory");
     const { user } = await requirePermission(ctx, "categories:update");
 
     const category = await ctx.db.get(args.id);
@@ -96,6 +99,7 @@ export const updateCategory = mutation({
 export const getCategories = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "categories.getCategories");
     const { user, isSuperAdmin } = await requirePermission(ctx, "categories:read");
     const accessible = await getAccessibleOrgGroupIds(ctx, user, isSuperAdmin);
     const filter = resolveOrgGroupFilter(args.orgGroupId, accessible, isSuperAdmin);
@@ -108,6 +112,7 @@ export const getCategories = query({
 export const getCategoryById = query({
   args: { id: v.id("categories") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "categories.getCategoryById");
     await requirePermission(ctx, "categories:read");
     return await ctx.db.get(args.id);
   },

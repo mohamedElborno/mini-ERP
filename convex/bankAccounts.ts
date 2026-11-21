@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -112,6 +113,7 @@ async function ensureOnePrimary(ctx: { db: any }, groupId: Id<"groups">) {
 export const createBankAccount = mutation({
   args: bankAccountInput,
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "bankAccounts.createBankAccount");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "settings:manage",
@@ -163,6 +165,7 @@ export const updateBankAccount = mutation({
     active: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "bankAccounts.updateBankAccount");
     const { user } = await requirePermission(ctx, "settings:manage");
 
     const row = await ctx.db.get(args.id);
@@ -195,6 +198,7 @@ export const updateBankAccount = mutation({
 export const setPrimaryBankAccount = mutation({
   args: { id: v.id("bankAccounts") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "bankAccounts.setPrimaryBankAccount");
     await requirePermission(ctx, "settings:manage");
 
     const row = await ctx.db.get(args.id);
@@ -214,6 +218,7 @@ export const setPrimaryBankAccount = mutation({
 export const deleteBankAccount = mutation({
   args: { id: v.id("bankAccounts") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "bankAccounts.deleteBankAccount");
     await requirePermission(ctx, "settings:manage");
 
     const row = await ctx.db.get(args.id);
@@ -237,6 +242,7 @@ export const getBankAccounts = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "bankAccounts.getBankAccounts");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 

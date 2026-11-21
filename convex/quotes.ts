@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v, type Infer } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -177,6 +178,7 @@ export const createQuote = mutation({
     shippingTaxes: v.optional(quoteShippingTaxInput),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.createQuote");
     const currentUser = await requirePermission(ctx, "quotes:create");
 
     const deal = await ctx.db.get(args.deal);
@@ -202,7 +204,7 @@ export const createQuote = mutation({
     const allCurrencies = await ctx.db.query("currencies").collect();
     const settingsDoc = await getSettingsByGroup(ctx, dealGroupId);
     const defaultCurrencyId =
-      settingsDoc?.defaultCurrency ?? allCurrencies.find((c) => c.default)?._id;
+      settingsDoc?.defaultCurrency ?? allCurrencies.find((c) => c.group === dealGroupId && c.default)?._id;
 
     if ((args.lineItems?.length || args.services?.length) && !args.currency) {
       throw new Error(
@@ -345,6 +347,7 @@ export const updateQuote = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.updateQuote");
     const currentUser = await requirePermission(ctx, "quotes:update");
 
     const quote = await ctx.db.get(args.id);
@@ -364,7 +367,7 @@ export const updateQuote = mutation({
     const allCurrencies = await ctx.db.query("currencies").collect();
     const settingsDoc = await getSettingsByGroup(ctx, quote.group ?? undefined);
     const defaultCurrencyId =
-      settingsDoc?.defaultCurrency ?? allCurrencies.find((c) => c.default)?._id;
+      settingsDoc?.defaultCurrency ?? allCurrencies.find((c) => c.group === quote.group && c.default)?._id;
     const allowOversell = await canOversellQuotes(ctx, currentUser._id);
 
     const fin = args.financialUpdate;
@@ -669,6 +672,7 @@ export const getQuotes = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.getQuotes");
     const currentUser = await requirePermission(ctx, "quotes:read");
 
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
@@ -731,6 +735,7 @@ export const listQuotesPaginated = query({
     search: listSearchValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.listQuotesPaginated");
     const { user, isAdmin, accessible } = await getListAuth(ctx, "quotes:read");
     const term = normalizeSearch(args.search);
     const groupIds = resolveGroupIdsForList(args.orgGroupId, accessible);
@@ -821,6 +826,7 @@ export const listQuotesPaginated = query({
 export const getQuoteListStats = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.getQuoteListStats");
     const { user, isAdmin, accessible } = await getListAuth(ctx, "quotes:read");
     const accessibleDealIds = await loadAccessibleDealIds(
       ctx,
@@ -888,6 +894,7 @@ export const getQuoteListStats = query({
 export const getQuoteById = query({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.getQuoteById");
     return await loadQuoteIfReadable(ctx, args.id);
   },
 });
@@ -896,6 +903,7 @@ export const getQuoteById = query({
 export const getQuoteWithDetails = query({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.getQuoteWithDetails");
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) return null;
     const hasInvoice =
@@ -912,6 +920,7 @@ export const getQuoteWithDetails = query({
 export const getQuoteAuditLog = query({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.getQuoteAuditLog");
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) return null;
 
@@ -969,6 +978,7 @@ export const getQuoteAuditLog = query({
 export const ensureQuotePublicViewToken = mutation({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.ensureQuotePublicViewToken");
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) throw new Error("Quote not found.");
     const token = await ensureStaffPublicViewToken(ctx, "quotes", quote);
@@ -980,6 +990,7 @@ export const ensureQuotePublicViewToken = mutation({
 export const revokeQuotePublicViewToken = mutation({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.revokeQuotePublicViewToken");
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) throw new Error("Quote not found.");
     await revokePublicViewToken(ctx, args.id);
@@ -991,6 +1002,7 @@ export const revokeQuotePublicViewToken = mutation({
 export const rotateQuotePublicViewToken = mutation({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.rotateQuotePublicViewToken");
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) throw new Error("Quote not found.");
     const token = await rotatePublicViewToken(ctx, args.id);
@@ -1002,6 +1014,7 @@ export const rotateQuotePublicViewToken = mutation({
 export const getQuoteForPrint = query({
   args: { id: v.id("quotes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "quotes.getQuoteForPrint");
     const quote = await loadQuoteIfReadable(ctx, args.id);
     if (!quote) return null;
     return await buildQuotePrintData(ctx, quote);

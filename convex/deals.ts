@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -96,6 +97,7 @@ export const createDeal = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "deals.createDeal");
     const { user: currentUser, isSuperAdmin } = await requirePermission(
       ctx,
       "deals:create",
@@ -146,6 +148,7 @@ export const updateDealStage = mutation({
     lossReason: v.optional(v.string()), // Required if the stage is lost
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "deals.updateDealStage");
     const { user: currentUser } = await requirePermission(ctx, "deals:update");
 
     // Get the deal
@@ -174,6 +177,7 @@ export const updateDealStage = mutation({
 export const getDeals = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "deals.getDeals");
     const { user: currentUser } = await requirePermission(ctx, "deals:read");
 
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
@@ -207,7 +211,7 @@ export const getDeals = query({
 
       uniqueDeals.sort((a, b) => b._creationTime - a._creationTime);
 
-      return uniqueDeals;
+      return uniqueDeals.filter((deal) => deal.group && getUserAssignedGroupIds(currentUser).includes(deal.group));
     }
   },
 });
@@ -229,6 +233,7 @@ export const updateDeal = mutation({
     group: v.optional(v.id("groups")), // Allow transferring the deal to another group
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "deals.updateDeal");
     const { user: currentUser } = await requirePermission(ctx, "deals:update");
 
     const deal = await ctx.db.get(args.id);
@@ -276,6 +281,7 @@ export const updateDeal = mutation({
 export const getDealsWithDetails = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "deals.getDealsWithDetails");
     const { user: currentUser } = await requirePermission(ctx, "deals:read");
 
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
@@ -384,6 +390,7 @@ export const getDealById = query({
     id: v.id("deals"),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "deals.getDealById");
     const { user: currentUser } = await requirePermission(ctx, "deals:read");
 
     const deal = await ctx.db.get(args.id);
@@ -414,6 +421,7 @@ export const getDealById = query({
 export const getDealDetailPage = query({
   args: { id: v.id("deals") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "deals.getDealDetailPage");
     const { user: currentUser } = await requirePermission(ctx, "deals:read");
     const deal = await ctx.db.get(args.id);
     if (!deal) return null;

@@ -7,7 +7,7 @@ const PRINT_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: var(--font-thmanyah, 'Segoe UI', Tahoma, Arial, sans-serif);
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
     font-size: 13px;
     color: #1a1a1a;
     background: #e5e7eb;

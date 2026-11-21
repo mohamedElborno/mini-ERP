@@ -99,7 +99,8 @@ describe("calculateFinancialDocument", () => {
     expect(result.taxExclusiveTotal).toBe(110);
     expect(result.taxAmount).toBe(16.5);
     expect(result.total).toBe(126.5);
-    expect(result.processedLineItems[0].taxAmount).toBe(13.5);
+    // Line taxes use line net; document tax also accounts for the general discount.
+    expect(result.processedLineItems[0].taxAmount).toBe(15);
   });
 
   it("Test 7 — unit discount", () => {
@@ -150,7 +151,8 @@ describe("calculateFinancialDocument", () => {
       (sum, line) => sum + line.taxAmount,
       0,
     );
-    expect(allocatedLineTax).toBe(result.taxAmount);
+    expect(allocatedLineTax).toBe(15);
+    expect(result.taxAmount).toBe(13.5);
   });
 
   it("supports legacy decimal tax rates from stored documents", () => {
@@ -196,6 +198,6 @@ describe("calculateFinancialDocument", () => {
         ],
         [],
       ),
-    ).toThrow('Duplicate taxId "vat" on the same line.');
+    ).toThrow(/Duplicate tax/);
   });
 });

@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -40,6 +41,7 @@ export const createTax = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "taxes.createTax");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const orgGroupId = await resolveOrgGroupForCreate(
       ctx,
@@ -69,6 +71,7 @@ export const updateTax = mutation({
     rate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "taxes.updateTax");
     const { user } = await requirePermission(ctx, "settings:manage");
 
     const tax = await ctx.db.get(args.id);
@@ -89,6 +92,7 @@ export const updateTax = mutation({
 export const deleteTax = mutation({
   args: { id: v.id("taxes") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "taxes.deleteTax");
     await requirePermission(ctx, "settings:manage");
 
     const tax = await ctx.db.get(args.id);
@@ -102,6 +106,7 @@ export const deleteTax = mutation({
 export const getTaxes = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "taxes.getTaxes");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 

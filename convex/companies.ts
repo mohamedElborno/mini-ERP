@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Doc, Id } from "./_generated/dataModel";
@@ -97,6 +98,7 @@ export const createCompany = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companies.createCompany");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "companies:create",
@@ -157,6 +159,7 @@ export const updateCompany = mutation({
     creditPeriodDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companies.updateCompany");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "companies:update",
@@ -213,6 +216,7 @@ export const updateCompany = mutation({
 export const getCompanies = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companies.getCompanies");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "companies:read",
@@ -260,6 +264,7 @@ export const listCompaniesPaginated = query({
     search: listSearchValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companies.listCompaniesPaginated");
     const { user, isAdmin, accessible } = await getListAuth(
       ctx,
       "companies:read",
@@ -309,6 +314,7 @@ export const listCompaniesPaginated = query({
 export const getCompanyListStats = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companies.getCompanyListStats");
     const { user, isAdmin, accessible } = await getListAuth(
       ctx,
       "companies:read",
@@ -374,6 +380,7 @@ export const getCompanyListStats = query({
 export const getCompanyById = query({
   args: { id: v.id("companies") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companies.getCompanyById");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "companies:read",

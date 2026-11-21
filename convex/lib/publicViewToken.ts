@@ -8,7 +8,7 @@ export function generatePublicViewToken(): string {
 export function isValidPublicViewToken(token: string): boolean {
   return (
     typeof token === "string" &&
-    token.length >= 40 &&
+    token.length === 43 &&
     /^[A-Za-z0-9_-]+$/.test(token)
   );
 }

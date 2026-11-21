@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
@@ -42,6 +43,7 @@ export const createCurrency = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "currencies.createCurrency");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const orgGroupId = await resolveOrgGroupForCreate(
       ctx,
@@ -81,6 +83,7 @@ export const updateCurrency = mutation({
     clearExchangeRate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "currencies.updateCurrency");
     const { user } = await requirePermission(ctx, "settings:manage");
 
     const row = await ctx.db.get(args.id);
@@ -124,6 +127,7 @@ export const setDefaultCurrency = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "currencies.setDefaultCurrency");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const currency = await ctx.db.get(args.id);
     if (!currency) throw new Error("Currency not found.");
@@ -152,6 +156,7 @@ export const setDefaultCurrency = mutation({
 export const deleteCurrency = mutation({
   args: { id: v.id("currencies") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "currencies.deleteCurrency");
     await requirePermission(ctx, "settings:manage");
 
     const currency = await ctx.db.get(args.id);
@@ -167,6 +172,7 @@ export const deleteCurrency = mutation({
 export const getCurrencies = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "currencies.getCurrencies");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 

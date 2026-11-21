@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query } from "./_generated/server";
@@ -527,6 +528,7 @@ export const getDashboardMetrics = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "dashboard.getDashboardMetrics");
     let periodStart: number;
     let periodEnd: number;
 

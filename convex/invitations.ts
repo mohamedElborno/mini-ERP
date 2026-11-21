@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
@@ -52,7 +53,7 @@ export const updateClerkId = internalMutation({
 // ============================================================================
 
 export const getSenderInfo = internalQuery({
-  args: { clerkId: v.string() },
+  args: { clerkId: v.string(), roleId: v.id("roles"), groupIds: v.array(v.id("groups")) },
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
@@ -61,11 +62,11 @@ export const getSenderInfo = internalQuery({
     if (!user?.role) return null;
 
     const role = await ctx.db.get(user.role);
-    const canInvite =
-      role?.permissions.includes("admin:all") ||
-      role?.permissions.includes("users:update");
+    const canInvite = role?.permissions.includes("admin:all");
 
     if (!canInvite) return null;
+    if (!(await ctx.db.get(args.roleId)) || !args.groupIds.length) return null;
+    for (const id of args.groupIds) if (!(await ctx.db.get(id))) return null;
     return { userId: user._id };
   },
 });
@@ -77,6 +78,7 @@ export const getSenderInfo = internalQuery({
 export const getPendingInvitations = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "invitations.getPendingInvitations");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
@@ -129,6 +131,7 @@ export const getPendingInvitations = query({
 export const cancelInvitation = mutation({
   args: { id: v.id("pendingInvitations") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "invitations.cancelInvitation");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
 
@@ -166,6 +169,8 @@ export const inviteEmployee = action({
     // Verify caller has permission
     const sender = await ctx.runQuery(internal.invitations.getSenderInfo, {
       clerkId: identity.subject,
+      roleId: args.roleId,
+      groupIds: args.groupIds,
     });
     if (!sender)
       throw new Error("Forbidden: Missing permission to invite users.");

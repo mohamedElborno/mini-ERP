@@ -46,24 +46,6 @@ async function lookupByTokenHash(
     .unique();
 }
 
-async function lookupByLegacyToken(
-  ctx: QueryCtx,
-  table: "quotes" | "invoices",
-  token: string,
-): Promise<PublicViewDoc | null> {
-  if (table === "quotes") {
-    return await ctx.db
-      .query("quotes")
-      .withIndex("by_publicViewToken", (q) => q.eq("publicViewToken", token))
-      .unique();
-  }
-
-  return await ctx.db
-    .query("invoices")
-    .withIndex("by_publicViewToken", (q) => q.eq("publicViewToken", token))
-    .unique();
-}
-
 export async function lookupByPublicViewToken(
   ctx: QueryCtx,
   table: "quotes",
@@ -83,9 +65,9 @@ export async function lookupByPublicViewToken(
 
   const tokenHash = await hashPublicViewToken(token);
   const byHash = await lookupByTokenHash(ctx, table, tokenHash);
-  if (byHash) return byHash;
+  if (byHash) return byHash.publicViewTokenExpiresAt && byHash.publicViewTokenExpiresAt > Date.now() ? byHash : null;
 
-  return (await lookupByLegacyToken(ctx, table, token)) ?? null;
+  return null; // Legacy links must be rotated by authorized staff.
 }
 
 export async function assignPublicViewToken(
@@ -95,14 +77,12 @@ export async function assignPublicViewToken(
   const token = generatePublicViewToken();
   const tokenHash = await hashPublicViewToken(token);
   const tokenEnc = await encryptPublicViewToken(token);
-
+  if (!tokenEnc) throw new Error("PUBLIC_VIEW_TOKEN_ENCRYPTION_KEY must be configured");
   await ctx.db.patch(id, {
+    publicViewTokenExpiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
     publicViewTokenHash: tokenHash,
-    // Encrypted at rest when configured; otherwise keep plaintext for staff
-    // re-print only (public lookup always uses the hash).
-    ...(tokenEnc
-      ? { publicViewTokenEnc: tokenEnc, publicViewToken: undefined }
-      : { publicViewToken: token, publicViewTokenEnc: undefined }),
+    publicViewTokenEnc: tokenEnc,
+    publicViewToken: undefined,
     updatedAt: Date.now(),
   });
 
@@ -139,24 +119,9 @@ export async function ensureStaffPublicViewToken<
   if (!fresh) throw new Error("Document not found.");
   doc = fresh;
 
+  if (!doc.publicViewTokenExpiresAt || doc.publicViewTokenExpiresAt <= Date.now() || !doc.publicViewTokenEnc) return await assignPublicViewToken(ctx, doc._id);
   const existing = await resolveStaffPublicViewToken(doc);
-  if (existing) {
-    if (!doc.publicViewTokenHash || doc.publicViewToken) {
-      const tokenHash = await hashPublicViewToken(existing);
-      const tokenEnc =
-        doc.publicViewTokenEnc ??
-        (await encryptPublicViewToken(existing)) ??
-        undefined;
-      await ctx.db.patch(doc._id, {
-        publicViewTokenHash: tokenHash,
-        ...(tokenEnc
-          ? { publicViewTokenEnc: tokenEnc, publicViewToken: undefined }
-          : { publicViewToken: existing }),
-        updatedAt: Date.now(),
-      });
-    }
-    return existing;
-  }
+  if (existing) return existing;
 
   // Legacy rows: hash stored without a recoverable copy — establish one once.
   if (
@@ -181,6 +146,7 @@ export async function revokePublicViewToken(
   id: Id<"quotes"> | Id<"invoices">,
 ): Promise<void> {
   await ctx.db.patch(id, {
+    publicViewTokenExpiresAt: undefined,
     publicViewTokenHash: undefined,
     publicViewTokenEnc: undefined,
     publicViewToken: undefined,

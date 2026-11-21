@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Id } from "./_generated/dataModel";
@@ -59,6 +60,7 @@ export const createProduct = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "products.createProduct");
     const { user, isSuperAdmin } = await requirePermission(ctx, "products:create");
     const { orgGroupId: requestedOrgGroupId, ...productFields } = args;
     const orgGroupId = await resolveOrgGroupForCreate(
@@ -124,6 +126,7 @@ export const updateProduct = mutation({
     price: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "products.updateProduct");
     const { user } = await requirePermission(ctx, "products:update");
 
     const product = await ctx.db.get(args.id);
@@ -160,6 +163,7 @@ export const getProducts = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "products.getProducts");
     const { user, isSuperAdmin } = await requirePermission(ctx, "products:read");
     const accessible = await getAccessibleOrgGroupIds(ctx, user, isSuperAdmin);
     const filter = resolveOrgGroupFilter(args.orgGroupId, accessible, isSuperAdmin);
@@ -187,6 +191,7 @@ export const listProductsPaginated = query({
     search: listSearchValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "products.listProductsPaginated");
     const { isAdmin, accessible } = await getListAuth(ctx, "products:read");
     const term = normalizeSearch(args.search);
     const groupIds = resolveGroupIdsForList(args.orgGroupId, accessible);
@@ -260,6 +265,7 @@ export const listProductsPaginated = query({
 export const getProductListStats = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "products.getProductListStats");
     const { isAdmin, accessible } = await getListAuth(ctx, "products:read");
     const orgFilter = resolveOrgGroupFilter(
       args.orgGroupId,
@@ -295,6 +301,7 @@ export const getProductListStats = query({
 export const getProductById = query({
   args: { id: v.id("products") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "products.getProductById");
     await requirePermission(ctx, "products:read");
     return await ctx.db.get(args.id);
   },

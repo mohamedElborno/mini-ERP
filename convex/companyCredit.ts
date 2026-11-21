@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
@@ -386,6 +387,7 @@ export async function logManualCreditLimitUpdate(
 export const getCompanyCreditSummary = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companyCredit.getCompanyCreditSummary");
     const company = await ctx.db.get(args.companyId);
     if (!company) return null;
     return computeCreditSummary(company);
@@ -398,6 +400,7 @@ export const getCompanyCreditLedger = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "companyCredit.getCompanyCreditLedger");
     const rows = await ctx.db
       .query("companyCreditLedger")
       .withIndex("by_company", (q) => q.eq("company", args.companyId))

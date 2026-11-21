@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -45,6 +46,7 @@ export const createService = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "services.createService");
     const { user, isSuperAdmin } = await requirePermission(ctx, "services:create");
     const { orgGroupId: requestedOrgGroupId, ...serviceFields } = args;
     const orgGroupId = await resolveOrgGroupForCreate(
@@ -93,6 +95,7 @@ export const updateService = mutation({
     price: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "services.updateService");
     const { user } = await requirePermission(ctx, "services:update");
 
     const service = await ctx.db.get(args.id);
@@ -119,6 +122,7 @@ export const getServices = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "services.getServices");
     const { user, isSuperAdmin } = await requirePermission(ctx, "services:read");
     const accessible = await getAccessibleOrgGroupIds(ctx, user, isSuperAdmin);
     const filter = resolveOrgGroupFilter(args.orgGroupId, accessible, isSuperAdmin);
@@ -140,6 +144,7 @@ export const getServices = query({
 export const getServiceById = query({
   args: { id: v.id("services") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "services.getServiceById");
     await requirePermission(ctx, "services:read");
     return await ctx.db.get(args.id);
   },

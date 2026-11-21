@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { PrintLang } from "./printLabels";
 import { getLabels } from "./printLabels";
@@ -35,14 +35,17 @@ function NotFoundState({ lang }: { lang: PrintLang }) {
 }
 
 export function PublicDocumentViewClient({ type, token, lang }: Props) {
-  const quoteData = useQuery(
-    api.publicDocuments.getPublicQuoteByToken,
-    type === "quote" ? { token } : "skip",
-  );
-  const invoiceData = useQuery(
-    api.publicDocuments.getPublicInvoiceByToken,
-    type === "invoice" ? { token } : "skip",
-  );
+  const getQuote = useMutation(api.publicDocuments.getPublicQuoteByToken);
+  const getInvoice = useMutation(api.publicDocuments.getPublicInvoiceByToken);
+  const [quoteData, setQuoteData] = useState<Awaited<ReturnType<typeof getQuote>> | undefined>();
+  const [invoiceData, setInvoiceData] = useState<Awaited<ReturnType<typeof getInvoice>> | undefined>();
+  useEffect(() => {
+    let active = true;
+    setQuoteData(undefined); setInvoiceData(undefined);
+    if (type === "quote") getQuote({ token }).then(value => { if (active) setQuoteData(value); }).catch(() => { if (active) setQuoteData(null); });
+    else getInvoice({ token }).then(value => { if (active) setInvoiceData(value); }).catch(() => { if (active) setInvoiceData(null); });
+    return () => { active = false; };
+  }, [type, token, getQuote, getInvoice]);
   const data = type === "quote" ? quoteData : invoiceData;
   const L = getLabels(lang);
 

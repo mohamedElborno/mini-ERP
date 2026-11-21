@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -41,6 +42,7 @@ export const createRole = mutation({
     permissions: v.array(v.string()), // Array of strings, e.g.: ["deals:read", "deals:create"]
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "roles.createRole");
     // To create a new role, the user must have the global admin or user management permission
     const currentUser = await requirePermission(ctx, "admin:all");
 
@@ -76,6 +78,7 @@ export const updateRole = mutation({
     permissions: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "roles.updateRole");
     const currentUser = await requirePermission(ctx, "admin:all");
 
     const role = await ctx.db.get(args.id);
@@ -102,6 +105,7 @@ export const updateRole = mutation({
 export const getRoles = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "roles.getRoles");
     // Usually this function is used in the user management page, so we request the read permission for users
     await requirePermission(ctx, "users:read");
 
@@ -118,6 +122,7 @@ export const getRoleById = query({
     id: v.id("roles"),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "roles.getRoleById");
     await requirePermission(ctx, "users:read");
     return await ctx.db.get(args.id);
   },

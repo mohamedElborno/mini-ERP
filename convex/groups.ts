@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -44,6 +45,7 @@ export const createGroup = mutation({
     parent: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.createGroup");
     const { user } = await requirePermission(ctx, "settings:manage");
 
     const name = args.name.trim();
@@ -104,6 +106,7 @@ export const updateGroup = mutation({
     zipCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.updateGroup");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
 
     const group = await ctx.db.get(args.id);
@@ -177,6 +180,7 @@ export const updateGroup = mutation({
 export const getGroupBranding = query({
   args: { id: v.id("groups") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.getGroupBranding");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
@@ -211,6 +215,7 @@ export const getGroupBranding = query({
 export const generateGroupLogoUploadUrl = mutation({
   args: { id: v.id("groups") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.generateGroupLogoUploadUrl");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const group = await ctx.db.get(args.id);
     if (!group) throw new Error("Company not found.");
@@ -227,6 +232,7 @@ export const setGroupLogo = mutation({
     logoStorageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.setGroupLogo");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const group = await ctx.db.get(args.id);
     if (!group) throw new Error("Company not found.");
@@ -249,6 +255,7 @@ export const setGroupLogo = mutation({
 export const removeGroupLogo = mutation({
   args: { id: v.id("groups") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.removeGroupLogo");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const group = await ctx.db.get(args.id);
     if (!group) throw new Error("Company not found.");
@@ -269,6 +276,7 @@ export const removeGroupLogo = mutation({
 export const getOrgGroupDeletePreview = query({
   args: { id: v.id("groups") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.getOrgGroupDeletePreview");
     const { isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     if (!isSuperAdmin) {
       throw new Error("Forbidden: Only administrators can delete companies.");
@@ -308,6 +316,7 @@ export const deleteGroup = mutation({
     confirmationPhrase: v.string(),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.deleteGroup");
     const { isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     if (!isSuperAdmin) {
       throw new Error("Forbidden: Only administrators can delete companies.");
@@ -333,6 +342,7 @@ export const deleteGroup = mutation({
 export const getGroups = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "groups.getGroups");
     const { user, isSuperAdmin } = await requirePermission(ctx, "users:read");
     const accessible = await getAccessibleOrgGroupIds(ctx, user, isSuperAdmin);
     const all = await ctx.db.query("groups").order("desc").collect();
@@ -344,6 +354,7 @@ export const getGroups = query({
 export const getMyOrgGroups = query({
   args: {},
   handler: async (ctx) => {
+    await authorizeRequest(ctx, {}, "groups.getMyOrgGroups");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
@@ -366,6 +377,7 @@ export const getMyOrgGroups = query({
 export const getGroupById = query({
   args: { id: v.id("groups") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "groups.getGroupById");
     await requirePermission(ctx, "users:read");
     return await ctx.db.get(args.id);
   },

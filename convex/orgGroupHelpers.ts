@@ -36,12 +36,12 @@ export function filterByOrgGroup<T extends { group?: Id<"groups"> | null }>(
   accessibleGroupIds: Id<"groups">[],
 ) {
   if (!orgGroupFilter || orgGroupFilter === "all") {
-    if (accessibleGroupIds.length === 0) return rows;
+    if (accessibleGroupIds.length === 0) return [];
     return rows.filter(
-      (row) => !row.group || accessibleGroupIds.includes(row.group),
+      (row) => !!row.group && accessibleGroupIds.includes(row.group),
     );
   }
-  return rows.filter((row) => row.group === orgGroupFilter);
+  return rows.filter((row) => row.group === orgGroupFilter && accessibleGroupIds.includes(row.group));
 }
 
 export async function ensureDefaultOrgGroup(
@@ -145,9 +145,9 @@ export async function getSettingsByGroup(
       .query("settings")
       .withIndex("by_group", (q) => q.eq("group", groupId))
       .first();
-    if (scoped) return scoped;
+    return scoped;
   }
-  return (await ctx.db.query("settings").first()) ?? null;
+  return null;
 }
 
 export async function ensureSettingsForGroup(
@@ -174,7 +174,7 @@ export async function getDefaultCurrencyIdForGroup(
   const settings = await getSettingsByGroup(ctx, groupId);
   if (settings?.defaultCurrency) return settings.defaultCurrency;
   const all = await ctx.db.query("currencies").collect();
-  return all.find((c) => c.default)?._id;
+  return all.find((c) => c.group === groupId && c.default)?._id;
 }
 
 export async function getGroupBrandingForPrint(

@@ -1,3 +1,4 @@
+import { requireMember, authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
@@ -110,12 +111,15 @@ export const generateDocumentNumber = internalMutation({
 export const getSettings = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "settings.getSettings");
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
     let doc;
     if (!args.orgGroupId || args.orgGroupId === "all") {
-      doc = (await ctx.db.query("settings").first()) ?? null;
+      const member = await requireMember(ctx);
+      const groupId = member.user.group ?? member.groups[0];
+      doc = groupId ? await getSettingsByGroup(ctx, groupId) : null;
     } else {
       doc = (await getSettingsByGroup(ctx, args.orgGroupId)) ?? null;
     }
@@ -164,6 +168,7 @@ export const updateSettings = mutation({
     companyLogoStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "settings.updateSettings");
     const { user, isSuperAdmin } = await requirePermission(ctx, "settings:manage");
     const groupId = await resolveOrgGroupForCreate(
       ctx,
@@ -232,6 +237,7 @@ export const updateSettings = mutation({
 export const generateCompanyLogoUploadUrl = mutation({
   args: { orgGroupId: v.optional(v.id("groups")) },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "settings.generateCompanyLogoUploadUrl");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "settings:manage",
@@ -244,6 +250,7 @@ export const generateCompanyLogoUploadUrl = mutation({
 export const removeCompanyLogo = mutation({
   args: { orgGroupId: v.optional(v.id("groups")) },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "settings.removeCompanyLogo");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "settings:manage",

@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -75,6 +76,7 @@ export const createContact = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "contacts.createContact");
     const { user, isSuperAdmin } = await requirePermission(ctx, "contacts:create");
 
     let assignedGroup = await resolveOrgGroupForCreate(
@@ -90,8 +92,9 @@ export const createContact = mutation({
       }
     }
 
+    const { orgGroupId: _requestedGroup, ...fields } = args;
     const contactId = await ctx.db.insert("contacts", {
-      ...args,
+      ...fields,
       owner: user._id,
       group: assignedGroup,
       createdBy: user._id,
@@ -120,6 +123,7 @@ export const updateContact = mutation({
     group: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "contacts.updateContact");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "contacts:update",
@@ -148,6 +152,7 @@ export const getContacts = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "contacts.getContacts");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "contacts:read",
@@ -205,6 +210,7 @@ export const getContacts = query({
 export const getContactById = query({
   args: { id: v.id("contacts") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "contacts.getContactById");
     const { user, isSuperAdmin } = await requirePermission(
       ctx,
       "contacts:read",

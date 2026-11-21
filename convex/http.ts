@@ -37,9 +37,13 @@ http.route({
 
     // Catch the login or update event
     if (eventType === "user.created" || eventType === "user.updated") {
-      const { id, email_addresses, first_name, last_name, image_url } =
+      const { id, email_addresses, primary_email_address_id, first_name, last_name, image_url } =
         event.data;
-      const email = email_addresses[0]?.email_address;
+      const primary = email_addresses.find((entry: { id: string }) => entry.id === primary_email_address_id);
+      if (!primary || primary.verification?.status !== "verified") {
+        return new Response("Verified primary email required", { status: 200 });
+      }
+      const email = primary.email_address;
 
       await ctx.runMutation(internal.users.upsertUser, {
         clerkId: id,

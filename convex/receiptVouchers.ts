@@ -1,3 +1,4 @@
+import { authorizeRequest } from "./access";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Doc, Id } from "./_generated/dataModel";
@@ -365,6 +366,7 @@ export const createReceiptVoucher = mutation({
     orgGroupId: v.optional(v.id("groups")),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.createReceiptVoucher");
     const currentUser = await requirePermission(ctx, "receiptVouchers:create");
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
     const isAdmin = role?.permissions.includes("admin:all") ?? false;
@@ -602,6 +604,7 @@ export const updateReceiptVoucher = mutation({
     allocations: v.optional(v.array(allocationInput)),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.updateReceiptVoucher");
     const currentUser = await requirePermission(ctx, "receiptVouchers:update");
 
     const voucher = await ctx.db.get(args.id);
@@ -729,6 +732,7 @@ export const applyExistingReceiptVoucher = mutation({
     allocationAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.applyExistingReceiptVoucher");
     const currentUser = await requirePermission(ctx, "receiptVouchers:update");
 
     const voucher = await ctx.db.get(args.voucherId);
@@ -950,6 +954,7 @@ export const getLinkableReceiptVouchers = query({
     requireRemaining: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getLinkableReceiptVouchers");
     const currentUser = await requirePermission(ctx, "receiptVouchers:read");
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
     const isAdmin = role?.permissions.includes("admin:all") ?? false;
@@ -984,6 +989,7 @@ export const getReceiptVouchers = query({
     orgGroupId: orgGroupFilterValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getReceiptVouchers");
     const currentUser = await requirePermission(ctx, "receiptVouchers:read");
     const role = await ctx.db.get(currentUser.role as Id<"roles">);
     const isAdmin = role?.permissions.includes("admin:all") ?? false;
@@ -1052,6 +1058,7 @@ export const listReceiptVouchersPaginated = query({
     search: listSearchValidator,
   },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.listReceiptVouchersPaginated");
     const { user, isAdmin, accessible } = await getListAuth(
       ctx,
       "receiptVouchers:read",
@@ -1128,6 +1135,7 @@ export const listReceiptVouchersPaginated = query({
 export const getReceiptVoucherListStats = query({
   args: { orgGroupId: orgGroupFilterValidator },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getReceiptVoucherListStats");
     const { user, isAdmin, accessible } = await getListAuth(
       ctx,
       "receiptVouchers:read",
@@ -1173,6 +1181,7 @@ export const getReceiptVoucherListStats = query({
 export const getReceiptVoucherWithDetails = query({
   args: { id: v.id("receiptVouchers") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getReceiptVoucherWithDetails");
     const voucher = await loadVoucherIfReadable(ctx, args.id);
     if (!voucher) return null;
 
@@ -1212,6 +1221,7 @@ export const getReceiptVoucherWithDetails = query({
 export const getInvoicePaymentInfo = query({
   args: { invoiceId: v.id("invoices") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getInvoicePaymentInfo");
     await requirePermission(ctx, "receiptVouchers:read");
     const invoice = await ctx.db.get(args.invoiceId);
     if (!invoice) return null;
@@ -1257,6 +1267,7 @@ export const getInvoicePaymentInfo = query({
 export const getReceiptVoucherAuditLog = query({
   args: { id: v.id("receiptVouchers") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getReceiptVoucherAuditLog");
     const voucher = await loadVoucherIfReadable(ctx, args.id);
     if (!voucher) return null;
 
@@ -1388,6 +1399,7 @@ export const repairVoucherExchangeRates = internalMutation({
 export const getVoucherForPrint = query({
   args: { id: v.id("receiptVouchers") },
   handler: async (ctx, args) => {
+    await authorizeRequest(ctx, args, "receiptVouchers.getVoucherForPrint");
     const voucher = await loadVoucherIfReadable(ctx, args.id);
     if (!voucher) return null;
 
